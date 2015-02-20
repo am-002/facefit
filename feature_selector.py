@@ -11,13 +11,35 @@ class FeatureSelector:
         self.features = [0]*F
         random.seed(None)
 
+    def average(self, x):
+        return float(sum(x)) / len(x)
+
     def getPearson(self, tuples):
         x = []
         y = []
-        for (a, b) in tuples:
-            x.append(a)
-            y.append(b)
-        return numpy.corrcoef(x, y)[0, 1]
+        for t in tuples:
+            x.append(t[0])
+            y.append(t[1])
+
+         #return numpy.corrcoef(x, y)[0, 1]
+
+        n = len(x)
+        assert n > 0
+        avg_x = self.average(x)
+        avg_y = self.average(y)
+        diffprod = 0
+        xdiff2 = 0
+        ydiff2 = 0
+        for idx in range(n):
+            xdiff = x[idx] - avg_x
+            ydiff = y[idx] - avg_y
+            diffprod += xdiff * ydiff
+            xdiff2 += xdiff * xdiff
+            ydiff2 += ydiff * ydiff
+
+        print xdiff2
+        print ydiff2
+        return diffprod / math.sqrt(xdiff2 * ydiff2)
 
 
     def getRandomDirection(self):
@@ -25,7 +47,7 @@ class FeatureSelector:
 
     # Project a onto b and return length of the projection.
     def project(self, a, b):
-        return (a[0]*b[0] + a[1]*b[1]) / math.sqrt(a[0]**2 + a[1]**2)
+        return (a[0]*b[0] + a[1]*b[1]) / math.sqrt((a[0])**2 + (a[1])**2)
 
 
     def train(self, arr):
@@ -40,10 +62,9 @@ class FeatureSelector:
 
             for (originalFeatures, offset) in arr:
                 l = self.project(offset, d)
-                for origFeature in range(self.P2):
+                for origFeature in range(len(originalFeatures)):
                     f = originalFeatures[origFeature]
                     featureVsLength[origFeature].append([f, l])
-
 
             maxim = -123456.0
             res = 0.0
@@ -58,7 +79,7 @@ class FeatureSelector:
         # Here the features array is populated
 
     def selectFeatures(self, original):
-        res = [0]*F
-        for i in range(F):
+        res = [0]*self.F
+        for i in range(self.F):
             res[i] = original[self.features[i]]
         return res

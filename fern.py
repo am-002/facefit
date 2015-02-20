@@ -13,6 +13,8 @@ class Bin:
         self.offset_sum[1] += offset[1]
 
     def get_offset(self):
+        if (self.size == 0.0):
+            return [0, 0]
         return [self.offset_sum[0] / self.size, self.offset_sum[1] / self.size]
 
 class Fern:
@@ -34,18 +36,17 @@ class Fern:
     def train(self, arr):
         # Generate thersholds for each features. We first get the ranges
         # of all features in the training set.
-        ranges = [[INF, -INF]]*self.numOfFeatures
+        ranges = [[INF, -INF]]*(self.numOfFeatures)
 
         for (features, offset) in arr:
             for f in range(len(features)):
                 ranges[f][0] = min(ranges[f][0], features[f])
                 ranges[f][1] = max(ranges[f][1], features[f])
 
-        self.thresholds = [0]*self.numOfFeatures
+        self.thresholds = [0]*len(ranges)
         # Generate a random threshold for each features in the range.
         for f in range(len(ranges)):
-            self.thresholds[f] = random.randrange(ranges[f][0], ranges[f][1])
-            print self.thresholds[f]
+            self.thresholds[f] = random.uniform(ranges[f][0], ranges[f][1])
 
 
         # Get the bin for each data point. In each one, store the average offset
@@ -53,8 +54,6 @@ class Fern:
         for (features, offset) in arr:
             ans = self.getBin(features)
             self.bins[ans].add(offset)
-            print features
-            print ans
 
     def getOffset(self, features):
         b = self.getBin(features)

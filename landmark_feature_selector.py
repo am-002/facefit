@@ -36,7 +36,7 @@ class LandmarkFeatureSelector:
             p1 = (lx+dx, ly+dy)
             for (dx2, dy2) in self.pixels:
                 p2 = (lx+dx2, ly+dy2)
-            res.append(self.getPixelDifferences(image, p1, p2))
+                res.append(self.getPixelDifferences(image, p1, p2))
 
         return res
 
