@@ -1,6 +1,6 @@
 # Correlation-based feature selection.
 
-import numpy
+import numpy as np
 import random
 import math
 
@@ -37,17 +37,22 @@ class FeatureSelector:
             xdiff2 += xdiff * xdiff
             ydiff2 += ydiff * ydiff
 
-        print xdiff2
-        print ydiff2
+        # TODO
+        if (xdiff2 == 0 or ydiff2 == 0):
+            return 0
         return diffprod / math.sqrt(xdiff2 * ydiff2)
 
 
     def getRandomDirection(self):
-        return [random.random()*10, random.random()*10]
+        return np.array([random.random() for i in range(2*68)])
+
+    def magnitude(self, x):
+        return np.sqrt(np.dot(x, x))
 
     # Project a onto b and return length of the projection.
     def project(self, a, b):
-        return (a[0]*b[0] + a[1]*b[1]) / math.sqrt((a[0])**2 + (a[1])**2)
+        return np.dot(a, b) / self.magnitude(a);
+        #return (a[0]*b[0] + a[1]*b[1]) / math.sqrt((a[0])**2 + (a[1])**2)
 
 
     def train(self, arr):
@@ -61,7 +66,7 @@ class FeatureSelector:
                 featureVsLength[j] = []
 
             for (originalFeatures, offset) in arr:
-                l = self.project(offset, d)
+                l = self.project(offset.as_vector(), d)
                 for origFeature in range(len(originalFeatures)):
                     f = originalFeatures[origFeature]
                     featureVsLength[origFeature].append([f, l])
@@ -69,16 +74,19 @@ class FeatureSelector:
             maxim = -123456.0
             res = 0.0
             for origFeature in range(self.P2):
+                #print featureVsLength[origFeature]
                 corr = self.getPearson(featureVsLength[origFeature])
+                #print 'Corr is ', corr
                 if corr > maxim:
                     res = origFeature
                     maxim = corr
             self.features[i] = res
+            #print 'Picking feature ', res
             # TODO: How to make sure that this feature will not be chosen again? (If
             # it is correlated with another random projection length).
         # Here the features array is populated
 
-    def selectFeatures(self, original):
+    def extract_features(self, original):
         res = [0]*self.F
         for i in range(self.F):
             res[i] = original[self.features[i]]
