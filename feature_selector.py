@@ -42,16 +42,16 @@ class FeatureSelector:
             return 0
         return diffprod / math.sqrt(xdiff2 * ydiff2)
 
-
+    # TODO: Random projection from unit gaussian?
     def getRandomDirection(self):
-        return np.array([random.random() for i in range(2*68)])
+        return np.array([random.uniform(-1, 1) for i in range(2*68)])
 
     def magnitude(self, x):
         return np.sqrt(np.dot(x, x))
 
     # Project a onto b and return length of the projection.
     def project(self, a, b):
-        return np.dot(a, b) / self.magnitude(a);
+        return np.dot(a, b) / (self.magnitude(a) * self.magnitude(b));
         #return (a[0]*b[0] + a[1]*b[1]) / math.sqrt((a[0])**2 + (a[1])**2)
 
 
