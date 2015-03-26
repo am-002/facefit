@@ -4,6 +4,7 @@ from feature_selector import FeatureSelector
 from landmark_feature_selector import PixelDifferenceExtractor
 import menpo.io as mio
 import menpo
+import numpy as np
 from menpo.shape import PointCloud
 
 
@@ -37,11 +38,11 @@ class PrimaryRegressor:
     def __init__(self, P, F, nFerns, nLandmarks, mean_shape):
         self.nFerns = nFerns
         self.nFernFeatures = F
-        self.nFeatures = P*P
+        self.nFeatures = P
         self.nLandmarks = nLandmarks
         # TODO: Pass argumetns for FeatureExtractorConstructor in a dictionary
         self.feature_extractor = PixelDifferenceExtractor(P, nLandmarks, mean_shape)
-        self.primitive_regressors = [PrimitiveRegressor(P*P, F, nFerns, nLandmarks) for i in range(nFerns)]
+        self.primitive_regressors = [PrimitiveRegressor(P, F, nFerns, nLandmarks) for i in range(nFerns)]
 
     def extract_features(self, data):
         img = data[0]
@@ -49,18 +50,25 @@ class PrimaryRegressor:
 
         return self.feature_extractor.extract_features(img, current_estimate)
 
-    def train(self, training_data):
+    def train(self, features, targets):
+        #cov_pp = np.cov(features)
+        aux = ([ [pixels[i] for pixels in features] for i in range(self.nFeatures)])
+        cov_pp = np.cov(aux)
+
+        print 'Training primitive regressors '
         for i, r in enumerate(self.primitive_regressors):
-            print 'Training primitive regressor ', i
-            r.train(training_data)
+            print i
+            r.train(features, targets, cov_pp)
+            for j in range(len(features)):
+                targets[j].points -= r.test(features[j]).points
+
 
     def test(self, shape_indexed_features):
         res = PointCloud([ [0,0] for i in range(self.nLandmarks)])
         for r in self.primitive_regressors:
             offset = r.test(shape_indexed_features)
-            print 'Offset ', offset
             res.points += offset.points
-        res.points /= float(self.nFerns)
+        #res.points /= float(self.nFerns)
         return res
 
 class PrimitiveRegressor:
@@ -72,11 +80,12 @@ class PrimitiveRegressor:
         self.fern = Fern(nFernFeatures, nLandmarks)
         self.fern_feature_selector = FeatureSelector(nFeatures, nFernFeatures)
 
-    def train(self, training_data):
-        self.fern_feature_selector.train(training_data)
+    def train(self, features, targets, cov_pp):
+        self.fern_feature_selector.train(features, targets, cov_pp)
         fern_training_data = []
-        for (shapeIndexedFeatures, offset) in training_data:
-            fern_training_data.append((self.fern_feature_selector.extract_features(shapeIndexedFeatures), offset))
+        for i in range(len(features)):
+            fern_features = self.fern_feature_selector.extract_features(features[i])
+            fern_training_data.append((fern_features, targets[i]))
         self.fern.train(fern_training_data)
 
     def test(self, shapeIndexedFeatures):

@@ -8,7 +8,7 @@ INF = 102345678
 class Bin:
     def __init__(self, nLandmarks):
         self.size = 0.0
-        self.delta_sum = menpo.shape.PointCloud([[0,0]]*nLandmarks)
+        self.delta_sum = menpo.shape.PointCloud([[0.0, 0.0]]*nLandmarks)
 
     def add(self, delta):
         self.size += 1.0
@@ -41,11 +41,11 @@ class Fern:
         ranges = [[INF, -INF]]*(self.numOfFeatures)
 
         for (features, delta) in arr:
-            for f in range(len(features)):
+            for f in range(self.numOfFeatures):
                 ranges[f][0] = min(ranges[f][0], features[f])
                 ranges[f][1] = max(ranges[f][1], features[f])
 
-        self.thresholds = [0]*self.numOfFeatures
+        self.thresholds = [0.0]*self.numOfFeatures
         # Generate a random threshold for each features in the range.
         for f in range(self.numOfFeatures):
             self.thresholds[f] = random.uniform(ranges[f][0], ranges[f][1])

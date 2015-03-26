@@ -36,8 +36,8 @@ class PixelDifferenceExtractor:
         x = b[0][0]
         y = b[0][1]
 
-        for i in range(int(max([0, x-w/2])), int(min([x+1.5*w, image.shape[0]]))):
-            for j in range(int(max([0, y-h/2])), int(min([y+1.5*h, image.shape[1]]))):
+        for i in range(int(max([0, x-w/4])), int(min([x+1.25*w, image.shape[0]]))):
+            for j in range(int(max([0, y-h/4])), int(min([y+1.25*h, image.shape[1]]))):
                 mask[i][j] = True
         return BooleanImage(mask)
 
@@ -55,8 +55,8 @@ class PixelDifferenceExtractor:
         self.mean_shape = mean_shape
 
         for i in range(nPixels):
-            x = random.uniform(-2, 2)
-            y = random.uniform(-2, 2)
+            x = random.uniform(-0.25, 1.25)
+            y = random.uniform(-0.25, 1.25)
             lmark = self.getClosestPoint(mean_shape, [x, y])
             dx = x - mean_shape.points[lmark][0]
             dy = y - mean_shape.points[lmark][1]
@@ -66,9 +66,7 @@ class PixelDifferenceExtractor:
     def extract_features(self, image, current_estimate):
         ret = []
 
-        print 'Extracting features for image'
 
-        print 'Warping image to mean shape'
         now = time.time()
         # Wrap the image so that the current estimate aligns with mean shape,
         # then extract features.
@@ -85,26 +83,34 @@ class PixelDifferenceExtractor:
         # No warping at all!
         warpped_to_mean = image
 
-        print 'Took ', (time.time() - now)
 
 
-        print 'Warped to mean shape, getting pixel differences now'
-        print 'len(self.features) = ', len(self.features)
         now = time.time()
 
-        for (lmark1, offset1) in self.features:
-            x1 = current_estimate.points[lmark1][0] + offset1[0]*warpped_to_mean.shape[0]
-            y1 = current_estimate.points[lmark1][1] + offset1[1]*warpped_to_mean.shape[1]
+        b = self.getBoundingBox(image)
+        w = b[1][0] - b[0][0]
+        h = b[1][1] - b[0][1]
+
+        ret = []
+        for (lmark, offset) in self.features:
+
+            x = current_estimate.points[lmark][0] + offset[0]*w
+            y = current_estimate.points[lmark][1] + offset[1]*h
+            ret.append(self.getIntensity(warpped_to_mean, x, y))
+
+
+        #for (lmark1, offset1) in self.features:
+        #    x1 = current_estimate.points[lmark1][0] + offset1[0]*warpped_to_mean.shape[0]
+        #    y1 = current_estimate.points[lmark1][1] + offset1[1]*warpped_to_mean.shape[1]
 
             # Get intensity of pixel p at (x1, y1).
-            p = self.getIntensity(warpped_to_mean, x1, y1)
-            for (lmark2, offset2) in self.features:
-                x2 = current_estimate.points[lmark2][0] + offset2[0]*warpped_to_mean.shape[0]
-                y2 = current_estimate.points[lmark2][1] + offset2[1]*warpped_to_mean.shape[1]
+        #    p = self.getIntensity(warpped_to_mean, x1, y1)
+        #    for (lmark2, offset2) in self.features:
+        #        x2 = current_estimate.points[lmark2][0] + offset2[0]*warpped_to_mean.shape[0]
+        #        y2 = current_estimate.points[lmark2][1] + offset2[1]*warpped_to_mean.shape[1]
 
                 # Get intensity of pixel q at (x2, y2).
-                q = self.getIntensity(warpped_to_mean, x2, y2)
+        #        q = self.getIntensity(warpped_to_mean, x2, y2)
                 # Append the pixel difference p-q to the result.
-                ret.append(p-q)
-        print 'Extracted all pixel differences in time ', (time.time() - now)
+        #        ret.append(p-q)
         return ret
