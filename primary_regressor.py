@@ -3,7 +3,8 @@ from menpo.shape import PointCloud
 from menpo.transform import AlignmentSimilarity
 import numpy as np
 from primitive_regressor import PrimitiveRegressor
-import sys
+from util import transform_to_mean_shape
+
 
 class PrimaryRegressor:
     # landmarkFeatureSelector
@@ -22,7 +23,7 @@ class PrimaryRegressor:
         self.primitive_regressors = [PrimitiveRegressor(P, F, nFerns, nLandmarks) for i in range(nFerns)]
 
     def extract_features(self, img, shape):
-        return self.feature_extractor.extract_pixels(img, shape, AlignmentSimilarity(shape, self.mean_shape).pseudoinverse())
+        return self.feature_extractor.extract_pixels(img, shape, transform_to_mean_shape(shape, self.mean_shape).pseudoinverse())
 
     def train(self, pixel_vectors, targets):
         n_samples = len(pixel_vectors)
@@ -41,6 +42,7 @@ class PrimaryRegressor:
             r.train(pixel_vectors, targets, cov_pp, pixels_sum, pixel)
             for j in xrange(n_samples):
                 targets[j].points -= r.apply(pixel_vectors[j]).points
+                #print targets[j].points
 
     def apply(self, shape, shape_indexed_features):
         res = PointCloud([[0.0, 0.0] for i in range(self.nLandmarks)])
@@ -61,15 +63,16 @@ class PixelExtractor:
 
         for i in xrange(n_pixels):
             lmark = random.randint(0, n_landmarks-1)
-            dx = random.uniform(-0.3, 0.3)
-            dy = random.uniform(-0.3, 0.3)
+            #TODO: normalize this.
+            dx = random.uniform(-30, 30)
+            dy = random.uniform(-30, 30)
             self.pixel_coords.append((lmark, [dx, dy]))
-
 
     def extract_pixels(self, image, shape, mean_to_shape):
         ret = []
         for (lmark, offset) in self.pixel_coords:
-            offset = mean_to_shape.apply(offset)
+            # TODO: store normalized offsets
+            #offset = mean_to_shape.apply(offset)
             x = int(shape.points[lmark][0] + offset[0])
             y = int(shape.points[lmark][1] + offset[1])
 
