@@ -18,7 +18,12 @@ class ExplicitShapeRegressor:
 
         # Calculate mean shape from a subset of training data.
         self.mean_shape = getNormalisedMeanShape('../helen/subset_cropped/')
-        self.regressors = [PrimaryRegressor(n_pixels, n_fern_features, n_ferns, n_landmarks, self.mean_shape) for i in range(n_regressors)]
+
+        # TODO: In the paper, the kappa was set to 0.3*distance-between-eye-pupils-in-mean-shape.
+        self.kappa = 0.3
+
+        self.regressors = [PrimaryRegressor(n_pixels, n_fern_features, n_ferns, n_landmarks, self.mean_shape, self.kappa)
+                                for i in range(n_regressors)]
 
     def train(self, img_glob):
         init_shape = self.mean_shape
