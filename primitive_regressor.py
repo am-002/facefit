@@ -4,8 +4,9 @@ from menpo.shape import PointCloud
 import numpy as np
 
 INF = 102345678
-#BETA = 1000
-BETA = 0
+BETA = 1000
+# TODO !!!
+#BETA = 0.0
 
 class PrimitiveRegressor:
     def __init__(self, n_features, n_fern_features, n_ferns, n_landmarks):

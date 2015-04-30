@@ -1,79 +1,76 @@
-from menpo.shape import PointCloud
-import menpo.io as mio
-from primary_regressor import PrimaryRegressor
-from menpo.transform import AlignmentSimilarity
-import menpo
 import sys
 
-def getNormalisedMeanShape(img_path):
-    mean_shape = menpo.shape.mean_pointcloud([img.landmarks['PTS'].lms for img in mio.import_images(img_path)])
-    l = zip(*list(mean_shape.points))
-    box = [ [min(l[0]), min(l[1])], [max(l[0]), max(l[1])] ]
-    w = box[1][0] - box[0][0]
-    h = box[1][1] - box[0][1]
+from menpo.shape import PointCloud
+import menpo.io as mio
 
-    return PointCloud([((p[0]-box[0][0])/w, (p[1]-box[0][1])/h) for p in mean_shape.points])
-
-
-
-def fit_shape_to_box(normal_shape, box):
-    w = box[1][0] - box[0][0]
-    h = box[1][1] - box[0][1]
-
-    return PointCloud([ [p[0]*w + box[0][0], p[1]*h+box[0][1]] for p in normal_shape.points])
-
-
-
-def get_bounding_box(lg):
-    l = zip(*list(lg.lms.points))
-    box = [ [min(l[0]), min(l[1])], [max(l[0]), max(l[1])] ]
-    return box
+from primary_regressor import PrimaryRegressor
+import util
+from util import *
+import copy
 
 
 class ExplicitShapeRegressor:
-    def __init__(self, nLandmarks, nRegressors, P, nFernFeatures, nFerns):
-        self.nLandmarks = nLandmarks
-        self.nRegressors = nRegressors
-        self.nPixels = P
-        self.nFerns = nFerns
+    def __init__(self, n_landmarks, n_regressors, n_pixels, n_fern_features, n_ferns):
+        self.n_landmarks = n_landmarks
+        self.n_regressors = n_regressors
+        self.n_pixels = n_pixels
+        self.n_ferns = n_ferns
 
         # Calculate mean shape from a subset of training data.
         self.mean_shape = getNormalisedMeanShape('../helen/subset_cropped/')
-        self.regressors = [PrimaryRegressor(P, nFernFeatures, nFerns, nLandmarks, self.mean_shape) for i in range(nRegressors)]
+        self.regressors = [PrimaryRegressor(n_pixels, n_fern_features, n_ferns, n_landmarks, self.mean_shape) for i in range(n_regressors)]
 
     def train(self, img_glob):
         init_shape = self.mean_shape
-        n_samples = sum(1 for img in mio.import_images(img_glob) if img.has_landmarks)
+        #n_samples = sum(1 for img in mio.import_images(img_glob) if img.has_landmarks)
         #shapes = [fit_shape_to_box(init_shape) for i in xrange(n_samples)]
-        shapes = [fit_shape_to_box(init_shape, get_bounding_box(img.landmarks['PTS'])) for img in mio.import_images(img_glob)]
+        #shapes = [fit_shape_to_box(init_shape, get_bounding_box(img)) for img in mio.import_images(img_glob) if img.has_landmarks]
+        #n_samples = len(shapes)
+        shapes = []
 
+        RESULTS = []
 
         for r in self.regressors:
             pixels = []
             targets = []
             sys.stdout.flush()
-            for i, img in enumerate(mio.import_images(img_glob)):
-                if not img.has_landmarks:
+            n_samples = 0
+            for img_i in mio.import_images(img_glob):
+                if not img_i.has_landmarks:
                     continue
-                pixels.append(r.extract_features(img, shapes[i]))
-                delta = PointCloud(img.landmarks['PTS'].lms.points - shapes[i].points)
-                normalized_target = AlignmentSimilarity(shapes[i], self.mean_shape).apply(delta)
+                # Convert to greyscale
+                img = img_i.as_greyscale()
+                if len(shapes) <= n_samples:
+                    shapes.append(fit_shape_to_box(init_shape, get_bounding_box(img)))
+                pixels.append(r.extract_features(img, shapes[n_samples]))
+                delta = PointCloud(img.landmarks['PTS'].lms.points - shapes[n_samples].points)
+                normalized_target = util.transform_to_mean_shape(shapes[n_samples], self.mean_shape).apply(delta)
                 targets.append(normalized_target)
+                n_samples += 1
+                RESULTS.append([])
 
             r.train(pixels, targets)
 
             for i in xrange(n_samples):
+                RESULTS[i].append(copy.deepcopy(shapes[i-1]))
+
+            for i in xrange(n_samples):
                 normalized_offset = r.apply(shapes[i], pixels[i])
-                offset = AlignmentSimilarity(shapes[i], self.mean_shape).pseudoinverse().apply(normalized_offset).points
+                # print normalized_offset.points
+                offset = util.transform_to_mean_shape(shapes[i], self.mean_shape).pseudoinverse().apply(normalized_offset).points
                 shapes[i].points += offset
+                RESULTS[i].append(copy.deepcopy(shapes[i-1]))
                 #shapes[i].points += r.apply(shapes[i], pixels[i]).points
 
+        return RESULTS
+
     def fit(self, image, initial_shape):
-        shape = fit_shape_to_box(initial_shape, get_bounding_box(image.landmarks['PTS']))
+        image = image.as_greyscale()
+        shape = fit_shape_to_box(initial_shape, get_bounding_box(image))
 
         for r in self.regressors:
             pixels = r.extract_features(image, shape)
-            shape.points += AlignmentSimilarity(shape, self.mean_shape).pseudoinverse().apply(r.apply(shape, pixels)).points
+            shape.points += util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse().apply(r.apply(shape, pixels)).points
             #shape.points += r.apply(shape, pixels).points
 
         return shape
