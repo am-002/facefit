@@ -1,6 +1,5 @@
 import random
 from menpo.shape import PointCloud
-from menpo.transform import AlignmentSimilarity
 import numpy as np
 from primitive_regressor import PrimitiveRegressor
 from util import transform_to_mean_shape
@@ -10,16 +9,17 @@ class PrimaryRegressor:
     # landmarkFeatureSelector
     # primitive_regressors
 
-    def __init__(self, P, F, nFerns, nLandmarks, mean_shape):
+    def __init__(self, P, F, nFerns, nLandmarks, mean_shape, kappa):
         self.nFerns = nFerns
         self.nFernFeatures = F
         self.nFeatures = P
         self.mean_shape = mean_shape
+        self.kappa = kappa
         # TODO
         self.nPixels = P
         self.nLandmarks = nLandmarks
         # TODO: Pass argumetns for FeatureExtractorConstructor in a dictionary
-        self.feature_extractor = PixelExtractor(P, nLandmarks, mean_shape)
+        self.feature_extractor = PixelExtractor(P, nLandmarks, mean_shape, self.kappa)
         self.primitive_regressors = [PrimitiveRegressor(P, F, nFerns, nLandmarks) for i in range(nFerns)]
 
     def extract_features(self, img, shape):
@@ -56,7 +56,7 @@ class PrimaryRegressor:
 
 
 class PixelExtractor:
-    def __init__(self, n_pixels, n_landmarks, mean_shape):
+    def __init__(self, n_pixels, n_landmarks, mean_shape, kappa):
         self.n_pixels = n_pixels
         self.pixel_coords = []
         self.mean_shape = mean_shape
@@ -64,23 +64,21 @@ class PixelExtractor:
         for i in xrange(n_pixels):
             lmark = random.randint(0, n_landmarks-1)
             #TODO: normalize this.
-            dx = random.uniform(-30, 30)
-            dy = random.uniform(-30, 30)
+            dx = random.uniform(-kappa, kappa)
+            dy = random.uniform(-kappa, kappa)
             self.pixel_coords.append((lmark, [dx, dy]))
 
     def extract_pixels(self, image, shape, mean_to_shape):
         ret = []
         for (lmark, offset) in self.pixel_coords:
-            # TODO: store normalized offsets
-            #offset = mean_to_shape.apply(offset)
+            offset = mean_to_shape.apply(offset)
             x = int(shape.points[lmark][0] + offset[0])
             y = int(shape.points[lmark][1] + offset[1])
 
             if x < 0 or y < 0 or x >= image.shape[0] or y >= image.shape[1]:
                 ret.append(0)
                 continue
-
-            # TODO: Assuming its greyscale.
+            # Extract pixel at (x, y).
             ret.append(image.pixels[x][y][0])
 
         return ret
