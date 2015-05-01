@@ -10,11 +10,12 @@ import copy
 
 
 class ExplicitShapeRegressor:
-    def __init__(self, n_landmarks, n_regressors, n_pixels, n_fern_features, n_ferns):
+    def __init__(self, n_landmarks, n_regressors=10, n_pixels=400, n_fern_features=5, n_ferns=500, n_perturbations=20):
         self.n_landmarks = n_landmarks
         self.n_regressors = n_regressors
         self.n_pixels = n_pixels
         self.n_ferns = n_ferns
+        self.n_perturbations = n_perturbations
 
         # Calculate mean shape from a subset of training data.
         self.mean_shape = getNormalisedMeanShape('../helen/subset_cropped/')
@@ -26,48 +27,48 @@ class ExplicitShapeRegressor:
                                 for i in range(n_regressors)]
 
     def train(self, img_glob):
-        init_shape = self.mean_shape
-        #n_samples = sum(1 for img in mio.import_images(img_glob) if img.has_landmarks)
-        #shapes = [fit_shape_to_box(init_shape) for i in xrange(n_samples)]
-        #shapes = [fit_shape_to_box(init_shape, get_bounding_box(img)) for img in mio.import_images(img_glob) if img.has_landmarks]
-        #n_samples = len(shapes)
         shapes = []
 
-        RESULTS = []
-
-        for r in self.regressors:
+        # TODO: Read everything into memory.
+        # 1. scale down OR
+        # 2. crop to face
+        # 3. calc mean out of trainset
+        # 4. maybe convert from 64bit to 32bit float?
+        for regressor_i, regressor in enumerate(self.regressors):
             pixels = []
             targets = []
-            sys.stdout.flush()
-            n_samples = 0
-            for img_i in mio.import_images(img_glob):
-                if not img_i.has_landmarks:
+
+            img_i = 0
+            for img_orig in mio.import_images(img_glob):
+                if not img_orig.has_landmarks:
                     continue
                 # Convert to greyscale
-                img = img_i.as_greyscale()
-                if len(shapes) <= n_samples:
-                    shapes.append(fit_shape_to_box(init_shape, get_bounding_box(img)))
-                pixels.append(r.extract_features(img, shapes[n_samples]))
-                delta = PointCloud(img.landmarks['PTS'].lms.points - shapes[n_samples].points)
-                normalized_target = util.transform_to_mean_shape(shapes[n_samples], self.mean_shape).apply(delta)
-                targets.append(normalized_target)
-                n_samples += 1
-                RESULTS.append([])
+                img = img_orig.as_greyscale()
 
-            r.train(pixels, targets)
+                if regressor_i == 0:
+                    bounding_box = get_bounding_box(img)
+                    shapes.append(fit_shape_to_box(self.mean_shape, bounding_box))
+                    for j in xrange(self.n_perturbations-1):
+                        shapes.append(fit_shape_to_box(self.mean_shape, perturb(bounding_box)))
 
-            for i in xrange(n_samples):
-                RESULTS[i].append(copy.deepcopy(shapes[i-1]))
+                for j in xrange(self.n_perturbations):
+                    index = img_i*self.n_perturbations + j
 
-            for i in xrange(n_samples):
-                normalized_offset = r.apply(shapes[i], pixels[i])
-                # print normalized_offset.points
+                    delta = PointCloud(img.landmarks['PTS'].lms.points - shapes[index].points)
+                    normalized_target = util.transform_to_mean_shape(shapes[index], self.mean_shape).apply(delta)
+
+                    targets.append(normalized_target)
+                    pixels.append(regressor.extract_features(img, shapes[index]))
+
+                img_i += 1
+
+
+            regressor.train(pixels, targets)
+
+            for i in xrange(len(shapes)):
+                normalized_offset = regressor.apply(shapes[i], pixels[i])
                 offset = util.transform_to_mean_shape(shapes[i], self.mean_shape).pseudoinverse().apply(normalized_offset).points
                 shapes[i].points += offset
-                RESULTS[i].append(copy.deepcopy(shapes[i-1]))
-                #shapes[i].points += r.apply(shapes[i], pixels[i]).points
-
-        return RESULTS
 
     def fit(self, image, initial_shape):
         image = image.as_greyscale()
