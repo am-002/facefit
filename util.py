@@ -1,14 +1,20 @@
 import menpo
 import random
+import numpy as np
 from menpo import io as mio
 from menpo.shape import PointCloud
 from menpo.transform import AlignmentSimilarity
 
 __author__ = 'andrejm'
 
+from menpo.image.interpolation import scipy_interpolation
+
+def sample_image(im, points_to_sample):
+    if isinstance(points_to_sample, PointCloud):
+            points_to_sample = points_to_sample.points
+    return scipy_interpolation(im.pixels, points_to_sample, order=1,  mode='constant', cval=0).reshape((len(points_to_sample),))
+
 def translate_to_origin(src):
-    #src = PointCloud(src)
-    #print src.points
     center = src.centre()
     #src.points -= center
     src = PointCloud([p - center for p in src.points])
@@ -18,8 +24,6 @@ def transform_to_mean_shape(src, mean_shape):
     src = translate_to_origin(src)
 
     return AlignmentSimilarity(src, mean_shape)
-
-
 
 def getNormalisedMeanShape(img_path):
     mean_shape = menpo.shape.mean_pointcloud([img.landmarks['PTS'].lms for img in mio.import_images(img_path)])
@@ -42,8 +46,7 @@ def fit_shape_to_box(normal_shape, box):
 
     # TODO: Slow.
     return PointCloud( [ (p[0]*w/2 + box_center[0], p[1]*h/2+box_center[1]) for p in normal_shape.points ])
-    #return PointCloud([ [p[0]*w + box[0][0], p[1]*h+box[0][1]] for p in normal_shape.points])
-
+    # return PointCloud(normal_shape.points*np.array([w, h])/2 + box_center)
 
 # TODO: Use OpenCV for this!
 def get_bounding_box(img):
