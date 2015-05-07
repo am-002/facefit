@@ -27,21 +27,19 @@ class PrimaryRegressor:
 
     def train(self, pixel_vectors, targets):
         n_samples = len(pixel_vectors)
-        ##print pixel_vectors
-        pixel = zip(*pixel_vectors)
+        pixel = np.array(zip(*pixel_vectors))
 
-        #print 'pixels: ', pixel
-
-        pixels_sum = map(sum, pixel)
+        #pixels_sum = map(sum, pixel)
+        pixels_sum = []
         cov_pp = np.cov(pixel)
 
         i = 0
         for r in self.primitive_regressors:
-            #print 'Training regressor ', i
+            print 'Training regressor ', i
             i += 1
             r.train(pixel_vectors, targets, cov_pp, pixels_sum, pixel)
             for j in xrange(n_samples):
-                targets[j].points -= r.apply(pixel_vectors[j]).points
+                targets[j] -= r.apply(pixel_vectors[j]).as_vector()
                 #print targets[j].points
 
     def apply(self, shape, shape_indexed_features):

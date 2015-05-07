@@ -4,9 +4,9 @@ from menpo.shape import PointCloud
 import numpy as np
 
 INF = 102345678
-BETA = 1000
+#BETA = 1000
 # TODO !!!
-#BETA = 0.0
+BETA = 0.0
 
 class PrimitiveRegressor:
     def __init__(self, n_features, n_fern_features, n_ferns, n_landmarks):
@@ -78,7 +78,7 @@ class Fern:
 
         for i in xrange(n_samples):
             bin_id = self.get_bin(feature_vectors[i])
-            self.bins[bin_id].add(targets[i])
+            self.bins[bin_id].add(PointCloud(targets[i].reshape(68,2)))
 
     def test(self, feature_vector):
         bin_id = self.get_bin(feature_vector)
@@ -92,95 +92,64 @@ class FeatureSelector:
         self.features = [(0,0)]*F
         random.seed(None)
 
-    def average(self, x):
-        return float(sum(x)) / len(x)
-
-    # TODO: Random projection from unit gaussian?
-    def getRandomDirection(self):
-        return np.array([random.uniform(-1, 1) for i in range(2*68)])
-
-    def magnitude(self, x):
-        return np.sqrt(np.dot(x, x))
-
-    # Project a onto b and return length of the projection.
-    def project(self, a, b):
-        return np.dot(a, b) / (self.magnitude(a) * self.magnitude(b));
-
-    def cov(self, x, y):
-        mean_x = self.average(x)
-        mean_y = self.average(y)
-        res = 0.0
-        for i in range(len(x)):
-            res += (x[i]-mean_x) * (y[i]-mean_y)
-        return res / float(len(x))
-
-
     def train(self, features, targets, cov_pp, pixel_sum, pixels):
-
-
         for f in xrange(self.F):
-            #print 'COV_PP: ', cov_pp
             # Project the offset in random direction and measure the scalar length
             # of the projection. Find which feature has highest imapct on the length.
 
-            d = self.getRandomDirection()
+            # Generate random direction.
+            dir = np.random.randn(136)
 
-            l = []
+            # Normalize it.
+            dir /= np.linalg.norm(dir)
 
-            for target in targets:
-                l.append(self.project(target.as_vector(), d))
-            #print 'l is ', l
+            # Project each target onto random direction.
+            lengths = targets.reshape((len(targets), 136)).dot(dir)
 
-            l_sum = np.sum(l)
-            var_l = self.cov(l, l)
-
-            # set l to l[i]-l_mean as a speed up!
-
-            cov_l_p = [0]*self.nPixels
-            n_samples = float(len(features))
             n_pixels = self.nPixels
-            # for i in xrange(len(features)):
-            #     li = l[i]
-            #     for pixel in xrange(n_pixels):
-            #         cov_l_p[pixel] = features[i][pixel]*li
-            #
-            # for pixel in xrange(n_pixels):
-            #     cov_l_p[pixel] = (cov_l_p[pixel] + pixel_sum[pixel]*l_sum*(n_samples-2/n_samples))/n_samples
-            #
-            # for pixel in xrange(n_pixels):
-            #     cov_l_p[pixel] /= float(n_pixels-1)
+            var_l = np.var(lengths)
 
-            for i in xrange(self.nPixels):
-                cov_l_p[i] = self.cov(l, pixels[i])
-
-            #print 'var(l) = ', var_l
-            #print 'cov_l_p = ', cov_l_p
-
-            #    cov_l_p[pixel] = self.cov(l, p)
-
+            #cov_l_p = np.zeros(shape=(self.nPixels), dtype=float)
+            #for i in xrange(self.nPixels):
+            #    cov_l_p[i] = np.cov(m=lengths, y=pixels[i])[0][1]
 
             var_p = [cov_pp[i][i] for i in xrange(self.nPixels)]
 
-            maxcorr = -12345
-            res = (0, 0)
-            for i in xrange(n_pixels):
-                cov_ppii = var_p[i]
-                cov_l_pi = cov_l_p[i]
-                for j in xrange(i+1, n_pixels):
-                    # We want to get corr(l, pixel_i - pixel_j).
-                    denom = var_l*(cov_ppii + var_p[j]-2*cov_pp[i][j])
-                    if (denom <= 0):
-                        # TODO: What to do in this case?
-                        continue
-                    # TODO: abs here?
-                    corr = (cov_l_pi - cov_l_p[j]) / np.sqrt(denom)
-                    #print corr
-                    if (corr < 0):
-                        corr = -corr
+            n_samples = len(targets)
 
-                    if corr > maxcorr:
-                        maxcorr = corr
-                        res = (i, j)
+            cov_l_p  = (((pixels * lengths).sum(axis=1) / n_samples) -
+                         (lengths.sum() / n_samples) * (pixels.sum(axis=1) / n_samples))
+
+            Y_proj_cov = np.cov(lengths, bias=1)
+
+            # Calculate the indices of the largest covariance
+            pixel_cov_diff = np.diag(cov_pp)[:, None] + np.diag(cov_pp)
+            correlation = (cov_l_p[:, None] - cov_l_p) / np.sqrt(
+                Y_proj_cov * (pixel_cov_diff - 2 * cov_pp))
+            res = np.nanargmax(correlation)
+
+            # maxcorr = -12345
+            # res = (0, 0)
+            # for i in xrange(n_pixels):
+            #     cov_ppii = var_p[i]
+            #     cov_l_pi = cov_l_p[i]
+            #     for j in xrange(i+1, n_pixels):
+            #         # We want to get corr(l, pixel_i - pixel_j).
+            #         denom = var_l*(cov_ppii + var_p[j]-2*cov_pp[i][j])
+            #         if (denom <= 0):
+            #             # TODO: What to do in this case?
+            #             continue
+            #         # TODO: abs here?
+            #         corr = (cov_l_pi - cov_l_p[j]) / np.sqrt(denom)
+            #         #print corr
+            #         if (corr < 0):
+            #             corr = -corr
+            #
+            #         if corr > maxcorr:
+            #             maxcorr = corr
+            #             res = (i, j)
+
+            res = (res/n_pixels, res%n_pixels)
             self.features[f] = res
 
             # TODO: How to make sure that this feature will not be chosen again? (If
