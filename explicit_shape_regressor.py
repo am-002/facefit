@@ -5,6 +5,7 @@ import menpo.io as mio
 
 from primary_regressor import PrimaryRegressor
 import util
+import numpy as np
 from util import *
 import copy
 
@@ -29,6 +30,15 @@ class ExplicitShapeRegressor:
     def train(self, img_glob):
         shapes = []
 
+        images = []
+        for img_orig in mio.import_images(img_glob):
+                if not img_orig.has_landmarks:
+                    continue
+                # Convert to greyscale
+                images.append(img_orig.as_greyscale())
+        n_samples = len(images)
+        targets = np.ndarray((n_samples*self.n_perturbations, 136), float)
+
         # TODO: Read everything into memory.
         # 1. scale down OR
         # 2. crop to face
@@ -36,15 +46,10 @@ class ExplicitShapeRegressor:
         # 4. maybe convert from 64bit to 32bit float?
         for regressor_i, regressor in enumerate(self.regressors):
             pixels = []
-            targets = []
 
             img_i = 0
-            for img_orig in mio.import_images(img_glob):
-                if not img_orig.has_landmarks:
-                    continue
-                # Convert to greyscale
-                img = img_orig.as_greyscale()
 
+            for img in images:
                 if regressor_i == 0:
                     bounding_box = get_bounding_box(img)
                     shapes.append(fit_shape_to_box(self.mean_shape, bounding_box))
@@ -57,13 +62,14 @@ class ExplicitShapeRegressor:
                     delta = PointCloud(img.landmarks['PTS'].lms.points - shapes[index].points)
                     normalized_target = util.transform_to_mean_shape(shapes[index], self.mean_shape).apply(delta)
 
-                    targets.append(normalized_target)
+                    # targets.append(normalized_target)
+                    targets[index] = normalized_target.as_vector()
                     pixels.append(regressor.extract_features(img, shapes[index]))
 
                 img_i += 1
 
 
-            regressor.train(pixels, targets)
+            regressor.train(pixels, np.array(targets))
 
             for i in xrange(len(shapes)):
                 normalized_offset = regressor.apply(shapes[i], pixels[i])
