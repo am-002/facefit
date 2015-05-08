@@ -25,6 +25,7 @@ class ExplicitShapeRegressor:
         return images
 
     def train(self, images):
+        print images[0].path
         # Calculate normalized mean shape centered at the origin.
         target_shapes = [img.landmarks['PTS'].lms for img in images]
         self.mean_shape = menpo.shape.mean_pointcloud(target_shapes)
@@ -59,6 +60,8 @@ class ExplicitShapeRegressor:
                     shape_to_mean = util.transform_to_mean_shape(shapes[index], self.mean_shape)
                     normalized_target = shape_to_mean.apply(delta)
 
+                    if i == 0 and j == 0:
+                        print 'normalized target: ', normalized_target.points
                     targets[index] = normalized_target.as_vector()
                     mean_to_shape = shape_to_mean.pseudoinverse()
                     pixels[index] = regressor.extract_features(img, shapes[index], mean_to_shape)
@@ -67,6 +70,8 @@ class ExplicitShapeRegressor:
 
             for i in xrange(n_samples):
                 normalized_offset = regressor.apply(pixels[i])
+                if i == 0:
+                    print 'normalized offset: ', normalized_offset.points
                 offset = util.transform_to_mean_shape(shapes[i], self.mean_shape).pseudoinverse().apply(normalized_offset).points
                 shapes[i].points += offset
 
@@ -77,6 +82,7 @@ class ExplicitShapeRegressor:
         for r in self.regressors:
             mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
             normalized_target = r.apply(r.extract_features(image, shape, mean_to_shape))
+            print 'regressed target: ', normalized_target.points
             shape.points +=  mean_to_shape.apply(normalized_target).points
             # shape.pomean_to_shapenverse().apply((shape, pixels)).points
 
