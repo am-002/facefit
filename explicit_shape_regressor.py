@@ -14,7 +14,7 @@ class ExplicitShapeRegressor:
         # TODO: In the paper, the kappa was set to 0.3*distance-between-eye-pupils-in-mean-shape.
         self.kappa = 0.3
 
-    def train(self, img_glob):
+    def read_images(self, img_glob):
         # Read the training set into memory.
         images = []
         for img_orig in mio.import_images(img_glob):
@@ -22,7 +22,9 @@ class ExplicitShapeRegressor:
                 continue
             # Convert to greyscale and crop to landmarks.
             images.append(img_orig.as_greyscale().crop_to_landmarks_proportion_inplace(0.5))
+        return images
 
+    def train(self, images):
         # Calculate normalized mean shape centered at the origin.
         target_shapes = [img.landmarks['PTS'].lms for img in images]
         self.mean_shape = menpo.shape.mean_pointcloud(target_shapes)
@@ -74,10 +76,8 @@ class ExplicitShapeRegressor:
 
         for r in self.regressors:
             mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
-            pixels = r.extract_features(image, shape, mean_to_shape)
-            normalized_target = r.apply(pixels)
-            offset =  mean_to_shape.apply(normalized_target).points
-            shape.points += offset
+            normalized_target = r.apply(r.extract_features(image, shape, mean_to_shape))
+            shape.points +=  mean_to_shape.apply(normalized_target).points
             # shape.pomean_to_shapenverse().apply((shape, pixels)).points
 
         return shape
