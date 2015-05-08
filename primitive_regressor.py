@@ -6,7 +6,7 @@ import numpy as np
 INF = 102345678
 BETA = 1000
 # TODO !!!
-#BETA = 0.0
+# BETA = 0.0
 
 class PrimitiveRegressor:
     def __init__(self, n_features, n_fern_features, n_ferns, n_landmarks):
@@ -19,9 +19,11 @@ class PrimitiveRegressor:
 
     def train(self, feature_vectors, targets, cov_pp, pixels, pixel_averages, pixel_var_sum):
         self.fern_feature_selector.train(targets, cov_pp, pixels, pixel_averages, pixel_var_sum)
-        fern_feature_vectors = []
-        for feature_vector in feature_vectors:
-            fern_feature_vectors.append(self.fern_feature_selector.extract_features(feature_vector))
+
+        # fern_feature_vectors = []
+        fern_feature_vectors = np.apply_along_axis(self.fern_feature_selector.extract_features, axis=1, arr=feature_vectors)
+        #for feature_vector in feature_vectors:
+        #    fern_feature_vectors.append(self.fern_feature_selector.extract_features(feature_vector))
         self.fern.train(fern_feature_vectors, targets)
 
     def apply(self, shapeIndexedFeatures):
@@ -38,22 +40,26 @@ class Fern:
     class Bin:
         def __init__(self, n_landmarks):
             self.size = 0.0
-            self.delta_sum = menpo.shape.PointCloud([[0.0, 0.0]] * n_landmarks)
+            #self.delta_sum = menpo.shape.PointCloud([[0.0, 0.0]] * n_landmarks)
+            #self.delta_sum = PointCloud(np.zeros((n_landmarks, 2)), copy = False)
+            self.delta_sum = np.zeros(n_landmarks*2)
 
         def add(self, delta):
             self.size += 1.0
-            self.delta_sum.points += delta.points
+            self.delta_sum += delta
 
         def get_delta(self):
             if self.size == 0.0:
                 return self.delta_sum
-            return PointCloud(self.delta_sum.points / (self.size + BETA))
+            # return PointCloud(self.delta_sum.points / (self.size + BETA))
+            return self.delta_sum / (self.size + BETA)
 
 
     def __init__(self, n_features, n_landmarks):
         self.n_features = n_features
-        self.thresholds = [0] * self.n_features
-        self.bins = [Fern.Bin(n_landmarks) for _ in range(2 ** n_features)]
+        #self.bins = [Fern.Bin(n_landmarks) for _ in range(2 ** n_features)]
+        self.bins = np.zeros((2**n_features, 2*n_landmarks))
+        self.bins_size = np.zeros(2**n_features)
 
     def get_bin(self, feature_vector):
         res = 0
@@ -67,23 +73,35 @@ class Fern:
 
         # Generate thresholds for each features. We first get the ranges
         # of all features in the training set.
-        ranges = [(INF, -INF)] * self.n_features
+        # ranges = [(INF, -INF)] * self.n_features
+        #
+        # for feature_vector in feature_vectors:
+        #     for i, feature in enumerate(feature_vector):
+        #         ranges[i] = (min(ranges[i][0], feature), max(ranges[i][1], feature))
+        #
+        # # Generate a random threshold for each feature.
+        # # self.thresholds = [random.uniform(rng[0], rng[1]) for rng in ranges]
+        # self.thresholds = random.uniform()
 
-        for feature_vector in feature_vectors:
-            for i, feature in enumerate(feature_vector):
-                ranges[i] = (min(ranges[i][0], feature), max(ranges[i][1], feature))
+        ranges_min = feature_vectors.min(axis=0)
+        ranges_max = feature_vectors.max(axis=0)
 
-        # Generate a random threshold for each feature.
-        self.thresholds = [random.uniform(rng[0], rng[1]) for rng in ranges]
+        self.thresholds = np.random.uniform(low=ranges_min, high=ranges_max)
 
-        for i in xrange(n_samples):
-            bin_id = self.get_bin(feature_vectors[i])
-            self.bins[bin_id].add(PointCloud(targets[i].reshape(68,2)))
+        bins = np.apply_along_axis(self.get_bin, arr=feature_vectors, axis=1)
+        self.bins[bins] += targets
+        self.bins_size[bins] += 1
+        #
+        # for i in xrange(n_samples):
+        #     bin_id = self.get_bin(feature_vectors[i])
+        #     self.bins[bin_id].add(PointCloud(targets[i].reshape(68,2)))
 
     def test(self, feature_vector):
         bin_id = self.get_bin(feature_vector)
-        return self.bins[bin_id].get_delta()
-
+        #return self.bins[bin_id].get_delta()
+        if self.bins_size[bin_id] == 0.0:
+            return self.bins[bin_id]
+        return self.bins[bin_id] / (self.bins_size[bin_id] + BETA)
 
 class FeatureSelector:
     def __init__(self, n_pixels, n_fern_features):
@@ -117,6 +135,9 @@ class FeatureSelector:
             #pixel_var_sum = np.diag(cov_pp)[:, None] + np.diag(cov_pp)
             correlation = (cov_l_p[:, None] - cov_l_p) / np.sqrt(
                 lengths_std * (pixel_var_sum - 2 * cov_pp))
+            if np.isnan(correlation).all():
+                # If we reach this point, all residual targets are probably zero, thus we just quit.
+                return
             res = np.nanargmax(correlation)
 
             self.features[0][f] = res/self.n_pixels

@@ -36,7 +36,7 @@ class PrimaryRegressor:
             i += 1
             r.train(pixel_vectors, targets, cov_pp, pixel_vals, pixel_averages, pixel_var_sum)
             for j in xrange(n_samples):
-                offset = r.apply(pixel_vectors[j]).as_vector()
+                offset = r.apply(pixel_vectors[j])
                 targets[j] -= offset
 
     def apply(self, shape_indexed_features):
@@ -44,7 +44,7 @@ class PrimaryRegressor:
 
         for r in self.primitive_regressors:
             offset = r.apply(shape_indexed_features)
-            res.points += offset.points
+            res.points += offset.reshape((68,2))
         return res
 
 
