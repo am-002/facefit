@@ -44,8 +44,8 @@ class ExplicitShapeRegressor:
 
         # Generate initial shapes with perturbations.
         shapes = []
-        for i in xrange(n_samples):
-            bounding_box = get_bounding_box(images[i/self.n_perturbations])
+        for i in xrange(n_images):
+            bounding_box = get_bounding_box(images[i])
             shapes.append(fit_shape_to_box(self.mean_shape, bounding_box))
             for j in xrange(self.n_perturbations-1):
                 shapes.append(fit_shape_to_box(self.mean_shape, perturb(bounding_box)))
@@ -60,8 +60,6 @@ class ExplicitShapeRegressor:
                     shape_to_mean = util.transform_to_mean_shape(shapes[index], self.mean_shape)
                     normalized_target = shape_to_mean.apply(delta)
 
-                    if i == 0 and j == 0:
-                        print 'normalized target: ', normalized_target.points
                     targets[index] = normalized_target.as_vector()
                     mean_to_shape = shape_to_mean.pseudoinverse()
                     pixels[index] = regressor.extract_features(img, shapes[index], mean_to_shape)
@@ -70,8 +68,6 @@ class ExplicitShapeRegressor:
 
             for i in xrange(n_samples):
                 normalized_offset = regressor.apply(pixels[i])
-                if i == 0:
-                    print 'normalized offset: ', normalized_offset.points
                 offset = util.transform_to_mean_shape(shapes[i], self.mean_shape).pseudoinverse().apply(normalized_offset).points
                 shapes[i].points += offset
 
