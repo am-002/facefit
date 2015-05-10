@@ -1,6 +1,7 @@
 import menpo
 import random
 import numpy as np
+import copy
 from menpo import io as mio
 from menpo.shape import PointCloud
 from menpo.transform import AlignmentSimilarity
@@ -63,9 +64,11 @@ def perturb(bounding_box):
     width = bounding_box[1][0] - bounding_box[0][0]
     height = bounding_box[1][1] - bounding_box[0][1]
 
-    for i in xrange(2):
-        dx = random.uniform(-0.1*width, 0.1*width)
-        dy = random.uniform(-0.1*height, 0.1*height)
+    ret = copy.deepcopy(bounding_box)
 
-        bounding_box[i] += [dx, dy]
-    return bounding_box
+    for i in xrange(2):
+        dx = random.uniform(-0.05*width, 0.05*width)
+        dy = random.uniform(-0.05*height, 0.05*height)
+        ret[i][0] += dx
+        ret[i][1] += dy
+    return ret

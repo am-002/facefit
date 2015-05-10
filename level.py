@@ -1,12 +1,10 @@
-import random
 from menpo.shape import PointCloud
 import numpy as np
-from primitive_regressor import PrimitiveRegressor
-from util import transform_to_mean_shape
+from fern import Fern
 import util
 
 
-class PrimaryRegressor:
+class Level:
 
     def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa):
         self.n_ferns = n_ferns
@@ -16,11 +14,15 @@ class PrimaryRegressor:
         self.kappa = kappa
         self.n_pixels = n_pixels
         self.n_landmarks = n_landmarks
-        self.feature_extractor = PixelExtractor(n_pixels, n_landmarks, self.kappa)
-        self.primitive_regressors = [PrimitiveRegressor(n_pixels, n_fern_features, n_ferns, n_landmarks) for i in range(n_ferns)]
+        self.primitive_regressors = [Fern(n_pixels, n_fern_features, n_ferns, n_landmarks) for i in range(n_ferns)]
+        self.lmark = np.random.randint(low=0, high=n_landmarks, size=n_pixels)
+        self.pixel_coords = np.random.uniform(low=-kappa, high=kappa, size=n_pixels*2).reshape(n_pixels, 2)
+
 
     def extract_features(self, img, shape, mean_to_shape):
-        return self.feature_extractor.extract_pixels(img, shape, mean_to_shape)
+        offsets = mean_to_shape.apply(self.pixel_coords)
+        ret = shape.points[self.lmark] + offsets
+        return util.sample_image(img, ret)
 
     def train(self, pixel_vectors, targets):
         n_samples = len(pixel_vectors)
@@ -46,14 +48,3 @@ class PrimaryRegressor:
             offset = r.apply(shape_indexed_features)
             res.points += offset.reshape((68,2))
         return res
-
-
-class PixelExtractor:
-    def __init__(self, n_pixels, n_landmarks, kappa):
-        self.lmark = np.random.randint(low=0, high=n_landmarks, size=n_pixels)
-        self.pixel_coords = np.random.uniform(low=-kappa, high=kappa, size=n_pixels*2).reshape(n_pixels, 2)
-
-    def extract_pixels(self, image, shape, mean_to_shape):
-        offsets = mean_to_shape.apply(self.pixel_coords)
-        ret = shape.points[self.lmark] + offsets
-        return util.sample_image(image, ret)
