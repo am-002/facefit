@@ -1,13 +1,12 @@
 import numpy as np
 
-BETA = 0
-
 class Fern:
     r"""
     Implementation of a random Fern.
 
     """
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks):
+    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, beta):
+        self.BETA = beta
         self.n_fern_features = n_fern_features
         self.fern_feature_selector = FeatureSelector(n_pixels, n_fern_features)
         self.bins = np.zeros((2**n_fern_features, 2*n_landmarks))
@@ -39,7 +38,7 @@ class Fern:
         bin_id = self.get_bin(fern_features)
         if self.bins_size[bin_id] == 0.0:
             return self.bins[bin_id]
-        return self.bins[bin_id] / (self.bins_size[bin_id] + BETA)
+        return self.bins[bin_id] / (self.bins_size[bin_id] + self.BETA)
 
 class FeatureSelector:
     def __init__(self, n_pixels, n_fern_features):
