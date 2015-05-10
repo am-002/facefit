@@ -40,7 +40,7 @@ class ExplicitShapeRegressor:
         n_images = len(images)
         n_samples = n_images*self.n_perturbations
 
-        self.regressors = [Level(self.n_pixels, self.n_fern_features, self.n_ferns, self.n_landmarks, self.mean_shape, self.kappa)
+        self.regressors = [Level(self.n_pixels, self.n_fern_features, self.n_ferns, self.n_landmarks, self.mean_shape, self.kappa, self.beta)
                                 for i in range(self.n_regressors)]
 
         targets = np.ndarray((n_samples, 2*self.n_landmarks))
@@ -77,7 +77,7 @@ class ExplicitShapeRegressor:
 
 
     def fit(self, image, initial_shape):
-        image = image.as_greyscale()
+        image = image.as_greyscale(mode='average')
         shape = fit_shape_to_box(self.mean_shape, get_bounding_box(image))
 
         for r in self.regressors:

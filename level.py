@@ -6,7 +6,7 @@ import util
 
 class Level:
 
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa):
+    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa, beta):
         self.n_ferns = n_ferns
         self.n_fern_features = n_fern_features
         self.n_features = n_pixels
@@ -14,7 +14,7 @@ class Level:
         self.kappa = kappa
         self.n_pixels = n_pixels
         self.n_landmarks = n_landmarks
-        self.primitive_regressors = [Fern(n_pixels, n_fern_features, n_ferns, n_landmarks) for i in range(n_ferns)]
+        self.primitive_regressors = [Fern(n_pixels, n_fern_features, n_ferns, n_landmarks, beta) for i in range(n_ferns)]
         self.lmark = np.random.randint(low=0, high=n_landmarks, size=n_pixels)
         self.pixel_coords = np.random.uniform(low=-kappa, high=kappa, size=n_pixels*2).reshape(n_pixels, 2)
 
