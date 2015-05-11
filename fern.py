@@ -1,88 +1,80 @@
 import numpy as np
+from util import rand_unit_vector
+
+class FernBuilder:
+    def __init__(self, n_pixels, n_features, n_landmarks, beta):
+        self.n_pixels = n_pixels
+        self.n_features = n_features
+        self.n_landmarks = n_landmarks
+        self.beta = beta
+
+    def _highest_correlated_pixel(self, dir, targets, cov_pp, pixel_values, pixel_averages, var_pp_sum):
+        # Project each target onto random direction.
+        lengths = targets.reshape((len(targets), 2*self.n_landmarks)).dot(dir)
+        cov_l_p = pixel_values.dot(lengths)/len(targets) - np.average(lengths) * pixel_averages
+        correlation = (cov_l_p[:, None] - cov_l_p) / np.sqrt(np.std(lengths) * (var_pp_sum - 2 * cov_pp))
+
+        if np.isnan(correlation).all():
+            return 0, 0
+        res = np.nanargmax(correlation)
+        return res / self.n_pixels, res % self.n_pixels
+
+    @staticmethod
+    def _get_features(pixel_samples, feature_indices):
+        return pixel_samples[:, feature_indices[:, 0]] - pixel_samples[:, feature_indices[:, 1]]
+
+    @staticmethod
+    def _get_bin_ids(features, thresholds):
+        return np.apply_along_axis(Fern.get_bin, arr=features, axis=1, thresholds=thresholds)
+
+    @staticmethod
+    def _calc_bin_averages(targets, bin_ids, n_features, n_landmarks, beta):
+        bins = np.zeros((2 ** n_features, 2 * n_landmarks))
+        bins_size = np.zeros((2 ** n_features,))
+        bins[bin_ids] += targets.reshape(len(targets), 2 * n_landmarks)
+        bins_size[bin_ids] += 1
+        denoms = (bins_size + beta)
+        # Replace all 0 denominators with 1 to avoid division by 0.
+        denoms[denoms == 0] = 1
+        return bins / denoms[:, None]
+
+    def build(self, pixel_samples, targets, cov_pp, pixel_values, pixel_averages, pixel_var_sum):
+        feature_indices = np.zeros((self.n_features, 2), dtype=int, order='c')
+
+        for f in xrange(self.n_features):
+            dir = rand_unit_vector(2*self.n_landmarks)
+            feature_indices[f] = self._highest_correlated_pixel(dir, targets, cov_pp, pixel_values, pixel_averages, pixel_var_sum)
+
+        features = self._get_features(pixel_samples, feature_indices)
+        ranges = features.min(axis=0), features.max(axis=0)
+        thresholds = np.random.uniform(low=ranges[0], high=ranges[1])
+
+        bin_ids = self._get_bin_ids(features, thresholds)
+        bin_outputs = self._calc_bin_averages(targets, bin_ids, self.n_features, self.n_landmarks, self.beta)
+
+        return Fern(feature_indices, bin_outputs, thresholds)
 
 class Fern:
     r"""
     Implementation of a random Fern.
 
     """
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, beta):
-        self.BETA = beta
-        self.n_fern_features = n_fern_features
-        self.fern_feature_selector = FeatureSelector(n_pixels, n_fern_features)
-        self.bins = np.zeros((2**n_fern_features, 2*n_landmarks))
-        self.bins_size = np.zeros(2**n_fern_features)
+    def __init__(self, feature_indices, bins, thresholds):
+        self.bins = bins
+        self.features = feature_indices
+        self.thresholds = thresholds
 
-    def get_bin(self, feature_vector):
+    @staticmethod
+    def get_bin(features, thresholds):
         res = 0
-        for i in range(self.n_fern_features):
-            if feature_vector[i] <= self.thresholds[i]:
+        for i in xrange(len(features)):
+            if features[i] <= thresholds[i]:
                 res |= 1 << i
         return res
 
-    def train(self, feature_vectors, targets, cov_pp, pixels, pixel_averages, pixel_var_sum):
-        self.fern_feature_selector.train(targets, cov_pp, pixels, pixel_averages, pixel_var_sum)
-
-        fern_feature_vectors = np.apply_along_axis(self.fern_feature_selector.extract_features, axis=1, arr=feature_vectors)
-
-        ranges_min = fern_feature_vectors.min(axis=0)
-        ranges_max = fern_feature_vectors.max(axis=0)
-
-        self.thresholds = np.random.uniform(low=ranges_min, high=ranges_max)
-
-        bins = np.apply_along_axis(self.get_bin, arr=fern_feature_vectors, axis=1)
-        self.bins[bins] += targets
-        self.bins_size[bins] += 1
-
-    def apply(self, shape_indexed_features):
-        fern_features = self.fern_feature_selector.extract_features(shape_indexed_features)
-        bin_id = self.get_bin(fern_features)
-        if self.bins_size[bin_id] == 0.0:
-            return self.bins[bin_id]
-        return self.bins[bin_id] / (self.bins_size[bin_id] + self.BETA)
-
-class FeatureSelector:
-    def __init__(self, n_pixels, n_fern_features):
-        self.n_pixels=n_pixels
-        self.n_fern_features = n_fern_features
-        self.features = np.zeros((2, n_fern_features), order='C', dtype=int)
-
-    def train(self, targets, cov_pp, pixels, pixel_averages, pixel_var_sum):
-        n_images = len(targets)
-        n_landmarks = len(targets[0])/2
-        # n_pixels = len(pixels[0])
-        n_pixels = self.n_pixels
-
-        for f in xrange(self.n_fern_features):
-            # Project the offset in random direction and measure the scalar length
-            # of the projection. Find which feature has highest imapct on the length.
-
-            # Generate random direction.
-            dir = np.random.randn(2*n_landmarks)
-
-            # Normalize it.
-            dir /= np.linalg.norm(dir)
-
-            # Project each target onto random direction.
-            lengths = targets.reshape((n_images, 2*n_landmarks)).dot(dir)
-
-            cov_l_p = pixels.dot(lengths)/n_images - np.average(lengths) * pixel_averages
-
-            # TODO: Should the following be lengths_std = np.cov(lengths, bias=1)?
-            lengths_std = np.std(lengths)
-
-            correlation = (cov_l_p[:, None] - cov_l_p) / np.sqrt(
-                lengths_std * (pixel_var_sum - 2 * cov_pp))
-            if np.isnan(correlation).all():
-                # If we reach this point, all residual targets are probably zero, thus we just quit.
-                return
-            res = np.nanargmax(correlation)
-
-            self.features[0][f] = res/n_pixels
-            self.features[1][f] = res%n_pixels
-
-            # TODO: How to make sure that this feature will not be chosen again? (If
-            # it is correlated with another random projection length).
-            # Here the features array is populated
-
-    def extract_features(self, pixels):
-        return pixels[self.features[0]]-pixels[self.features[1]]
+    def apply(self, pixels):
+        # Select features from shape-indexed pixels.
+        features = pixels[self.features[:, 0]]-pixels[self.features[:, 1]]
+        # Get bin of the sample with the given shape-indexed pixels.
+        bin_id = self.get_bin(features, self.thresholds)
+        return self.bins[bin_id].reshape((68,2))
