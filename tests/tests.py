@@ -8,6 +8,9 @@ from util import *
 
 import unittest
 
+def compare_arrays(self, a, b):
+    return self.failUnless(np.isclose(np.array(a), b, atol=1e-5).all())
+
 class ESRTest(unittest.TestCase):
     def test_fit_shape_to_box(self):
         shapes = [
@@ -69,7 +72,7 @@ class FernBuilderTest(unittest.TestCase):
                             [0, 1.2, 44.1, 1],
                             [1.4, 141.4, 55, 2]],
                 "bin_ids": [0, 1, 2],
-                "results": [[0.000999, 0.001998, 0.002997, 0.003996],
+                "result": [[0.000999, 0.001998, 0.002997, 0.003996],
                             [0, 0.0011988, 0.044055944, 0.000999],
                             [0.0013986, 0.1412587412, 0.05494505495, 0.001998],
                             [0, 0, 0, 0]]
@@ -81,9 +84,32 @@ class FernBuilderTest(unittest.TestCase):
                                                  np.array(t['bin_ids']),
                                                  t['n_features'], t['n_landmarks'],
                                                  t['beta'])
-            res = np.array(t["results"])
-            self.failUnless(np.isclose(np.array(res), ans, atol=1e-5).all())
+            res = np.array(t["result"])
+            compare_arrays(self, ans, np.array(res))
 
+class FernTest(unittest.TestCase):
+    def setUp(self):
+        features = np.array([ [0, 1], [1, 2] ], dtype=int)
+        bins = [
+           [1, 2, 3, 4],
+           [0, 0, 1, 1],
+           [34, 33, 13, 134],
+           [52, 42, 57, 21]
+        ]
+        thresholds = [ 10, 5]
+        self.fern1 = Fern(2, features, np.array(bins), np.array(thresholds))
+
+    def test_apply(self):
+        test_cases = [
+            {
+                "pixels": [100, 14, 123],
+                "result": [[34, 33], [13, 134]]
+            }
+        ]
+
+        for t in test_cases:
+            ans = self.fern1.apply(np.array(t['pixels']))
+            compare_arrays(self, ans, np.array(t['result']))
 
 # def test_fern():
 #     f = Fern(n_features = 7, n_landmarks = 2)
