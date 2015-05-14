@@ -48,12 +48,17 @@ class FernBuilder:
     def _calc_bin_averages(targets, bin_ids, n_features, n_landmarks, beta):
         bins = np.zeros((2 ** n_features, 2 * n_landmarks))
         bins_size = np.zeros((2 ** n_features,))
-        bins[bin_ids] += targets.reshape(len(targets), 2 * n_landmarks)
-        bins_size[bin_ids] += 1
-        denoms = (bins_size + beta)
-        # Replace all 0 denominators with 1 to avoid division by 0.
-        denoms[denoms == 0] = 1
-        return bins / denoms[:, None]
+        # bins[bin_ids] += targets.reshape(len(targets), 2 * n_landmarks)
+        # bins_size[bin_ids] += 1
+        # denoms = (bins_size + beta)
+        # # Replace all 0 denominators with 1 to avoid division by 0.
+        # denoms[denoms == 0] = 1
+        # return bins / denoms[:, None]
+        for i in xrange(len(targets)):
+            bins[bin_ids[i]] += targets[i].reshape(136,)
+            bins_size[bin_ids[i]] += 1
+
+        return bins / (bins_size[:, None] + beta)
 
     def build(self, pixel_samples, targets, cov_pp, pixel_values, pixel_averages, pixel_var_sum):
         feature_indices = np.zeros((self.n_features, 2), dtype=int, order='c')
@@ -88,13 +93,17 @@ class Fern:
     def get_bin(features, thresholds):
         res = 0
         for i in xrange(len(features)):
-            if features[i] <= thresholds[i]:
+            if features[i] > thresholds[i]:
                 res |= 1 << i
         return res
 
     def apply(self, pixels):
         # Select features from shape-indexed pixels.
-        features = pixels[self.features[:, 0]]-pixels[self.features[:, 1]]
+        #features = pixels[self.features[:, 0]]-pixels[self.features[:, 1]]
+        features = []
+        for i, j in self.features:
+            features.append(pixels[i] - pixels[j])
+        features = np.array(features)
         # Get bin of the sample with the given shape-indexed pixels.
         bin_id = self.get_bin(features, self.thresholds)
         return self.bins[bin_id].reshape((self.n_landmarks,2))

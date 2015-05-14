@@ -2,14 +2,46 @@ import menpo.io as mio
 import numpy as np
 import esr
 
-builder = esr.ESRBuilder(n_landmarks=68, n_stages=10, n_ferns=500, n_perturbations=1, beta=1000, stddev_perturb=0.000001)
+import menpo.io as mio
+from menpo.visualize import print_dynamic
+from menpofit.fittingresult import compute_error
+import numpy as np
+from esr import ESRBuilder
 
-images = builder.read_images("../../helen/subset/*")
 
-esr = builder.build(images)
+builder = ESRBuilder()
 
-img = mio.import_image("../../helen/subset/10405146_1.jpg")
+trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
+testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 
-pc = esr.fit(img, builder.mean_shape)
-print img.landmarks['PTS'].lms.points
-print pc.points
+images = ESRBuilder.read_images(trainset)
+
+
+model = builder.build(images)
+
+lfpw_test_images = []
+for im in mio.import_images(testset, verbose=True, normalise=False):
+    im.crop_to_landmarks_proportion_inplace(0.5)
+    lfpw_test_images.append(im)
+
+initial_shape = model.mean_shape
+
+initial_errors = []
+final_errors = []
+final_shapes = []
+# initial_shapes = extract_shapes(lfpw_test_images)
+initial_shapes = [ESRBuilder.fit_shape_to_box(img.landmarks['PTS'].lms, esr.get_bounding_box(img)) for img in lfpw_test_images]
+for k, im in enumerate(lfpw_test_images):
+    gt_shape = im.landmarks[None].lms
+    final_shape = model.fit(im, model.mean_shape)
+
+    final_shapes.append(final_shape)
+    initial_shapes.append(initial_shape)
+
+    initial_errors.append(compute_error(initial_shape, gt_shape))
+    final_errors.append(compute_error(final_shape, gt_shape))
+
+    print_dynamic('{}/{}'.format(k + 1, len(lfpw_test_images)))
+
+print(np.mean(initial_errors))
+print(np.mean(final_errors))
