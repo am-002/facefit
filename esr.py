@@ -26,7 +26,8 @@ class ESRBuilder:
         self.beta = beta
         self.stddev_perturb = stddev_perturb
 
-    def read_images(self, img_glob):
+    @staticmethod
+    def read_images(img_glob):
         # Read the training set into memory.
         images = []
         for img_orig in mio.import_images(img_glob, verbose=True, normalise='False'):
