@@ -15,7 +15,7 @@ def get_bounding_box(image):
 
 class ESRBuilder:
     def __init__(self, n_landmarks=68, n_stages=10, n_pixels=400, n_fern_features=5,
-                 n_ferns=500, n_perturbations=20, kappa=0.3, beta=1000, stddev_perturb=0.03):
+                 n_ferns=500, n_perturbations=20, kappa=0.3, beta=1000, stddev_perturb=0.04):
         self.n_landmarks = n_landmarks
         self.n_stages = n_stages
         self.n_pixels = n_pixels
@@ -29,7 +29,7 @@ class ESRBuilder:
     def read_images(self, img_glob):
         # Read the training set into memory.
         images = []
-        for img_orig in mio.import_images(img_glob, verbose=True, normalise='False'):
+        for img_orig in mio.import_images(img_glob, verbose=True, normalise=False):
             if not img_orig.has_landmarks:
                 continue
             # Convert to greyscale and crop to landmarks.
@@ -70,7 +70,7 @@ class ESRBuilder:
         return np.array([shape.bounds() for shape in self.get_gt_shapes(images)])
 
     def build(self, images):
-        images = np.array(images)
+        images = np.array(self.read_images(images))
         self.mean_shape = self.centered_mean_shape([img.landmarks['PTS'].lms for img in images])
 
         # Generate initial shapes with perturbations.
