@@ -5,7 +5,7 @@ import util
 from menpo.visualize import print_dynamic
 
 class FernCascadeBuilder:
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa, beta):
+    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa, beta, basis_size):
         self.n_ferns = n_ferns
         self.n_fern_features = n_fern_features
         self.n_features = n_pixels
@@ -14,9 +14,24 @@ class FernCascadeBuilder:
         self.n_landmarks = n_landmarks
         self.beta = beta
         self.mean_shape = mean_shape
+        self.basis_size = basis_size
 
     def to_mean(self, shape):
         return util.transform_to_mean_shape(shape, self.mean_shape)
+
+    def _random_basis(self, ferns, basis_size):
+        output_indices = np.random.choice(a=self.n_ferns*(1 << self.n_fern_features), size=basis_size, replace=False)
+
+        # basis = np.array((basis_size, self.n_landmarks*2))
+        basis = []
+        for i, j in enumerate(output_indices):
+            fern_id = j / (1 << self.n_fern_features)
+            bin_id = j % (1 << self.n_fern_features)
+            ret = ferns[fern_id].bins[bin_id].copy()
+            ret = util.normalize(ret)
+            basis.append(ret)
+        return np.array(basis)
+
 
     def build(self, images, shapes, gt_shapes):
         assert(len(images) == len(shapes))
@@ -58,7 +73,15 @@ class FernCascadeBuilder:
             # Update targets.
             targets -= [fern.apply(pixel_vector) for pixel_vector in pixel_vectors]
             ferns.append(fern)
-        return FernCascade(self.n_landmarks, feature_extractor, ferns)
+
+        print("\nPerforming fern compression.\n")
+        # Create a new basis by randomly sampling from all fern outputs.
+        basis = self._random_basis(ferns, self.basis_size)
+        for i, fern in enumerate(ferns):
+            print_dynamic("Compressing fern {}/{}.".format(i, len(ferns)))
+            fern.compress(basis, 5)
+
+        return FernCascade(self.n_landmarks, feature_extractor, ferns, basis)
 
 
 class FeatureExtractor:
@@ -77,16 +100,17 @@ class FeatureExtractor:
 
 
 class FernCascade:
-    def __init__(self, n_landmarks, feature_extractor, ferns):
+    def __init__(self, n_landmarks, feature_extractor, ferns, basis):
         self.n_landmarks = n_landmarks
         self.feature_extractor = feature_extractor
         self.ferns = ferns
+        self.basis = basis
 
     def apply(self, image, shape, mean_to_shape):
         shape_indexed_features = self.feature_extractor.extract_features(image, shape, mean_to_shape)
         res = PointCloud(np.zeros((self.n_landmarks, 2)), copy=False)
         for r in self.ferns:
-            offset = r.apply(shape_indexed_features)
+            offset = r.apply(shape_indexed_features, self.basis)
             res.points += offset.reshape((68, 2))
         # if "10405146_1" in str(image.path):
         #     print 'Extracted features in apply: ', shape_indexed_features

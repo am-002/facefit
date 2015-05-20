@@ -14,14 +14,12 @@ builder = ESRBuilder()
 trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 
-
-
 model = builder.build(trainset)
 
 lfpw_test_images = []
 for im in mio.import_images(testset, verbose=True, normalise=False):
     im.crop_to_landmarks_proportion_inplace(0.5)
-    # im = im.as_grayscale(mode='average')
+    im = im.as_greyscale(mode='average')
     lfpw_test_images.append(im)
 
 initial_shape = model.mean_shape
@@ -30,7 +28,7 @@ initial_errors = []
 final_errors = []
 final_shapes = []
 # initial_shapes = extract_shapes(lfpw_test_images)
-initial_shapes = [ESRBuilder.fit_shape_to_box(img.landmarks['PTS'].lms, esr.get_bounding_box(img)) for img in lfpw_test_images]
+initial_shapes = [ESRBuilder.fit_shape_to_box(img.landmarks['PTS'].lms, esr.get_bounding_box(img, model.face_detector)) for img in lfpw_test_images]
 for k, im in enumerate(lfpw_test_images):
     gt_shape = im.landmarks[None].lms
     final_shape = model.fit(im, model.mean_shape)

@@ -39,7 +39,7 @@ def get_bounding_box(image, face_detector):
 
 class ESRBuilder:
     def __init__(self, n_landmarks=68, n_stages=10, n_pixels=400, n_fern_features=5,
-                 n_ferns=500, n_perturbations=20, kappa=0.3, beta=1000, stddev_perturb=0.04):
+                 n_ferns=500, n_perturbations=20, kappa=0.3, beta=1000, stddev_perturb=0.04, basis_size=512):
         self.n_landmarks = n_landmarks
         self.n_stages = n_stages
         self.n_pixels = n_pixels
@@ -50,6 +50,7 @@ class ESRBuilder:
         self.beta = beta
         self.stddev_perturb = stddev_perturb
         self.face_detector = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+        self.basis_size = basis_size
 
     @staticmethod
     def read_images(img_glob):
@@ -152,7 +153,7 @@ class ESRBuilder:
         fern_cascades = []
         for j in xrange(self.n_stages):
             fern_cascade_builder = FernCascadeBuilder(self.n_pixels, self.n_fern_features, self.n_ferns,
-                                                      self.n_landmarks, self.mean_shape, self.kappa, self.beta)
+                                                      self.n_landmarks, self.mean_shape, self.kappa, self.beta, self.basis_size)
             fern_cascade = fern_cascade_builder.build(images, shapes, gt_shapes)
             # Update current estimates of shapes.
             #shapes = [fern_cascade.apply(image, shape, transform_to_mean_shape(shape, self.mean_shape).pseudoinverse())
