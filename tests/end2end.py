@@ -14,14 +14,14 @@ builder = ESRBuilder()
 trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 
-images = ESRBuilder.read_images(trainset)
 
 
-model = builder.build(images)
+model = builder.build(trainset)
 
 lfpw_test_images = []
 for im in mio.import_images(testset, verbose=True, normalise=False):
     im.crop_to_landmarks_proportion_inplace(0.5)
+    # im = im.as_grayscale(mode='average')
     lfpw_test_images.append(im)
 
 initial_shape = model.mean_shape
@@ -45,3 +45,4 @@ for k, im in enumerate(lfpw_test_images):
 
 print(np.mean(initial_errors))
 print(np.mean(final_errors))
+
