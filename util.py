@@ -19,10 +19,15 @@ def transform_to_mean_shape(src, mean_shape):
 
     return AlignmentSimilarity(centered, mean_shape)
 
+def normalize(ret):
+    length = np.linalg.norm(ret)
+    if length > 0:
+        return ret / length
+    return ret
+
 def rand_unit_vector(dim):
     ret = np.random.randn(dim)
-    ret /= np.linalg.norm(ret)
-    return ret
+    return normalize(ret)
 
 # TODO: Use OpenCV for this!
 def get_bounding_box(img):

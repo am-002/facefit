@@ -1,6 +1,8 @@
 import numpy as np
 from util import rand_unit_vector
 
+import cv2
+
 class FernBuilder:
     def __init__(self, n_pixels, n_features, n_landmarks, beta):
         self.n_pixels = n_pixels
@@ -86,6 +88,8 @@ class Fern:
         self.bins = bins
         self.features = feature_indices
         self.thresholds = thresholds
+        self.compressed = False
+        # Reference to the basis (if compressed).
 
     @staticmethod
     def get_bin(features, thresholds):
@@ -95,9 +99,54 @@ class Fern:
                 res |= 1 << i
         return res
 
-    def apply(self, pixels):
+    def apply(self, pixels, basis=None):
         # Select features from shape-indexed pixels.
         features = pixels[self.features[:, 0]]-pixels[self.features[:, 1]]
         # Get bin of the sample with the given shape-indexed pixels.
         bin_id = self.get_bin(features, self.thresholds)
-        return self.bins[bin_id].reshape((self.n_landmarks,2))
+        if not self.compressed:
+            return self.bins[bin_id].reshape((self.n_landmarks, 2))
+        else:
+            return self._decompress_bin(bin_id, basis)
+
+    def _decompress_bin(self, bin_id, basis):
+        output = self.bins[bin_id]
+        ret = np.zeros(self.n_landmarks*2)
+        for (base_vector_id, coeff) in output:
+            ret += basis[int(base_vector_id)]*coeff
+        return ret
+
+    def compress(self, basis, Q):
+        self.compressed = True
+
+        compressed_bins = []
+        for i, current_bin in enumerate(self.bins):
+            compressed_bin = np.zeros((Q, 2))
+            residual = current_bin.copy()
+            for i in xrange(Q):
+                max_projection = 0.0
+                max_i = 0
+
+                for j, base_vector in enumerate(basis):
+                    proj = residual.dot(base_vector)
+                    if proj > max_projection:
+                        max_projection = proj
+                        max_i = j
+
+                # max_i = np.argmax(basis.dot(residual))
+
+                compressed_bin[i] = [max_i, 0]
+                compressed_matrix = np.zeros((self.n_landmarks*2, i+1))
+                for j in xrange(i+1):
+                    compressed_matrix[:, j] = basis[compressed_bin[j][0]]
+                compressed_matrix_t = np.transpose(compressed_matrix)
+
+
+                retval, dst = cv2.solve(compressed_matrix_t.dot(compressed_matrix),
+                                       compressed_matrix_t.dot(current_bin), flags=cv2.DECOMP_SVD)
+                for j in xrange(i+1):
+                    compressed_bin[j][1] = dst[j]
+                #dst = dst.reshape(2*self.n_landmarks, 1)
+                residual -= compressed_matrix.dot(dst).reshape(2*self.n_landmarks,)
+            compressed_bins.append(compressed_bin)
+        self.bins = compressed_bins
