@@ -25,7 +25,7 @@ def add_landmarks(mat, shape):
 
 cap = cv2.VideoCapture(0)
 model = hickle.load("model_new.hkl", safe=False)
-model.face_detector = cv2.CascadeClassifier("../haarcascade_frontalface_alt.xml")
+model.face_detector = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
 
 while True:
     img = get_img()
