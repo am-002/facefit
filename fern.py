@@ -89,7 +89,9 @@ class Fern:
         self.features = feature_indices
         self.thresholds = thresholds
         self.compressed = False
-        # Reference to the basis (if compressed).
+        self.compressed_bins = None
+        self.compressed_coeffs = None
+        self.Q = None
 
     @staticmethod
     def get_bin(features, thresholds):
@@ -107,46 +109,54 @@ class Fern:
         if not self.compressed:
             return self.bins[bin_id].reshape((self.n_landmarks, 2))
         else:
-            return self._decompress_bin(bin_id, basis)
+            #return self._decompress_bin(bin_id, basis)
+            return np.sum(basis[self.compressed_bins[bin_id]]*self.compressed_coeffs[bin_id].reshape(self.Q,1), axis=0)
 
-    def _decompress_bin(self, bin_id, basis):
-        output = self.bins[bin_id]
-        ret = np.zeros(self.n_landmarks*2)
-        for (base_vector_id, coeff) in output:
-            ret += basis[int(base_vector_id)]*coeff
-        return ret
+    # def _decompress_bin(self, bin_id, basis):
+    #     return basis[self.compressed_bins[bin_id]]*self.compressed_coeffs[bin_id]
+        # output = self.bins[bin_id]
+        # ret = np.zeros(self.n_landmarks*2)
+        # for (base_vector_id, coeff) in output:
+        #     ret += basis[int(base_vector_id)]*coeff
+        # return ret
 
     def compress(self, basis, Q):
         self.compressed = True
+        self.Q = Q
 
-        compressed_bins = []
-        for i, current_bin in enumerate(self.bins):
-            compressed_bin = np.zeros((Q, 2))
+        # compressed_bins = []
+        n_features = (1 << len(self.features))
+        self.compressed_bins = np.zeros((n_features, Q), dtype=int)
+        self.compressed_coeffs = np.zeros((n_features, Q))
+        for b, current_bin in enumerate(self.bins):
+            # compressed_bin = np.zeros((Q, 2))
             residual = current_bin.copy()
-            for i in xrange(Q):
-                max_projection = 0.0
-                max_i = 0
+            for k in xrange(Q):
+                # max_projection = 0.0
+                # max_i = 0
+                # for j, base_vector in enumerate(basis):
+                #     proj = residual.dot(base_vector)
+                #     if proj > max_projection:
+                #         max_projection = proj
+                #         max_i = j
 
-                for j, base_vector in enumerate(basis):
-                    proj = residual.dot(base_vector)
-                    if proj > max_projection:
-                        max_projection = proj
-                        max_i = j
+                max_i = np.argmax(basis.dot(residual))
 
-                # max_i = np.argmax(basis.dot(residual))
-
-                compressed_bin[i] = [max_i, 0]
-                compressed_matrix = np.zeros((self.n_landmarks*2, i+1))
-                for j in xrange(i+1):
-                    compressed_matrix[:, j] = basis[compressed_bin[j][0]]
+                self.compressed_bins[b][k] = max_i
+                compressed_matrix = np.zeros((self.n_landmarks*2, k+1))
+                for j in xrange(k+1):
+                    compressed_matrix[:, j] = basis[self.compressed_bins[b][j]]
                 compressed_matrix_t = np.transpose(compressed_matrix)
-
 
                 retval, dst = cv2.solve(compressed_matrix_t.dot(compressed_matrix),
                                        compressed_matrix_t.dot(current_bin), flags=cv2.DECOMP_SVD)
-                for j in xrange(i+1):
-                    compressed_bin[j][1] = dst[j]
+                for j in xrange(k+1):
+                    self.compressed_coeffs[b][j] = dst[j]
                 #dst = dst.reshape(2*self.n_landmarks, 1)
                 residual -= compressed_matrix.dot(dst).reshape(2*self.n_landmarks,)
-            compressed_bins.append(compressed_bin)
-        self.bins = compressed_bins
+            #compressed_bins.append(compressed_bin)
+            # self.compressed_bins[i] = compressed_bin[:, 0]
+            # self.compressed_coeffs[i] = compressed_bin[:, 1]
+
+        self.bins = None
+        #self.bins = compressed_bins
