@@ -92,10 +92,6 @@ class FeatureExtractor:
     def extract_features(self, img, shape, mean_to_shape):
         offsets = mean_to_shape.apply(self.pixel_coords)
         ret = shape.points[self.lmark] + offsets
-        # if "10405146_1" in str(img.path):
-        #     print 'Indexing with shape ', shape.points
-        #     print 'mean_to_shape ', mean_to_shape
-        #     print 'got offsets ',offsets
         return util.sample_image(img, ret)
 
 
@@ -112,7 +108,4 @@ class FernCascade:
         for r in self.ferns:
             offset = r.apply(shape_indexed_features, self.basis)
             res.points += offset.reshape((68, 2))
-        # if "10405146_1" in str(image.path):
-        #     print 'Extracted features in apply: ', shape_indexed_features
-        #     print 'Got normalized offset ', res.points
         return mean_to_shape.apply(res)
