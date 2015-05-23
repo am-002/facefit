@@ -1,9 +1,6 @@
-from esr import ESRBuilder
-import menpo.io as mio
-from fern import *
-from menpo.shape import PointCloud
-import numpy as np
-from fern import Fern
+from esr.base import ESRBuilder
+from esr.fern import *
+from esr.fern import Fern
 from util import *
 
 import unittest
@@ -11,24 +8,24 @@ import unittest
 def compare_arrays(self, a, b):
     return self.failUnless(np.isclose(np.array(a), b, atol=1e-5).all())
 
-class ESRTest(unittest.TestCase):
-    def test_fit_shape_to_box(self):
-        shapes = [
-            [[-1.0, -1.0], [-1.0, 1.0], [1.0, 1.0], [1.0, -1.0]],
-            [[0.0, 0.0]],
-        ]
-        boxes = [
-            [[10.0, 0.0], [15.0, 8.0]],
-            [[1.0, 1.0], [2.0, 2.0]],
-        ]
-        targets = [
-            [[10.0, 0.0], [10.0, 8.0], [15.0, 8.0], [15.0, 0.0]],
-            [[1.5, 1.5]],
-        ]
-
-        for shape, box, res in zip(shapes, boxes, targets):
-            ans = ESRBuilder.fit_shape_to_box(PointCloud(shape), np.array(box, dtype=float))
-            self.failUnless(np.all(ans.points == np.array(res)))
+# class ESRTest(unittest.TestCase):
+#     def test_fit_shape_to_box(self):
+#         shapes = [
+#             [[-1.0, -1.0], [-1.0, 1.0], [1.0, 1.0], [1.0, -1.0]],
+#             [[0.0, 0.0]],
+#         ]
+#         boxes = [
+#             [[10.0, 0.0], [15.0, 8.0]],
+#             [[1.0, 1.0], [2.0, 2.0]],
+#         ]
+#         targets = [
+#             [[10.0, 0.0], [10.0, 8.0], [15.0, 8.0], [15.0, 0.0]],
+#             [[1.5, 1.5]],
+#         ]
+#
+#         for shape, box, res in zip(shapes, boxes, targets):
+#             ans = ESRBuilder.fit_shape_to_box(PointCloud(shape), np.array(box, dtype=float))
+#             self.failUnless(np.all(ans.points == np.array(res)))
 
 
 class FernBuilderTest(unittest.TestCase):
@@ -47,20 +44,6 @@ class FernBuilderTest(unittest.TestCase):
             ans = FernBuilder._get_features(np.array(pixels), np.array(feat_ind))
             self.failUnless(np.isclose(np.array(res), ans).all())
 
-    def test_get_bin_ids(self):
-        features = [
-            [ [1, 2, 3], [4, 2, 1] ],
-        ]
-        thresholds = [
-            [1, 0, 4],
-        ]
-        result = [
-            [5, 4],
-        ]
-
-        for f, t, r in zip(features, thresholds, result):
-            ans = FernBuilder._get_bin_ids(np.array(f), np.array(t))
-            self.failIf(np.any(ans != np.array(r)))
 
     def test_calc_bin_averages(self):
         test_cases = [
@@ -110,6 +93,22 @@ class FernTest(unittest.TestCase):
         for t in test_cases:
             ans = self.fern1.apply(np.array(t['pixels']))
             compare_arrays(self, ans, np.array(t['result']))
+
+    # def test_get_bin_ids(self):
+    #     features = [
+    #         [ [1, 2, 3], [4, 2, 1] ],
+    #     ]
+    #     thresholds = [
+    #         [1, 0, 4],
+    #     ]
+    #     result = [
+    #         [5, 4],
+    #     ]
+    #
+    #     for f, t, r in zip(features, thresholds, result):
+    #         ans = Fern._get_bin_ids(np.array(f), np.array(t))
+    #         self.failIf(np.any(ans != np.array(r)))
+
 
 # def test_fern():
 #     f = Fern(n_features = 7, n_landmarks = 2)
