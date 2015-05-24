@@ -30,9 +30,13 @@ def get_gt_shapes(images):
     return np.array([image.landmarks['PTS'].lms for image in images])
 
 def fit_shape_to_box(normal_shape, box):
-    (x, y, w, h) = box
+    x, y = box.points[0]
+    w, h = box.range()
 
-    center_x = x + w*2.0/3.0
+    # center_x = x + w*2.0/3.0
+    # center_y = y + h/2.0
+
+    center_x = x + w/2.0
     center_y = y + h/2.0
 
     shape = normal_shape.points - normal_shape.centre()
@@ -46,8 +50,8 @@ def centered_mean_shape(target_shapes):
     return PointCloud(2 * (mean_shape.points - mean_shape.centre()) / mean_shape.range())
 
 def perturb_shapes(shapes):
-    dx = np.random.uniform(low=-0.1, high=0.1, size=(len(shapes)))
-    dy = np.random.uniform(low=-0.1, high=0.1, size=(len(shapes)))
+    dx = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
+    dy = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
     normalized_offsets = np.dstack((dy, dx))[0]
 
     ret = []
@@ -55,44 +59,38 @@ def perturb_shapes(shapes):
         ret.append(PointCloud(shapes[i].points + shapes[i].range() * normalized_offsets[i]))
     return ret
 
-def get_bounding_box(image, face_detector):
-    gray = image.pixels.astype(int)
-    gray = gray.reshape((len(gray), len(gray[0]),))
-    gray = np.array(gray, dtype=np.uint8)
-    faces = face_detector.detectMultiScale(gray, 1.3, 5)
-    boxes = []
-    maxi = 0
-    for i, (x, y, w, h) in enumerate(faces):
-        # We save the box in the menpo coordinate system.
-        box = [y,x,h,w]
-        boxes.append(box)
-        if w > boxes[maxi][3]:
-            maxi = i
+def is_point_within(pt, bounds):
+    x, y = pt
+    return bounds[0][0] <= x <= bounds[1][0] and bounds[0][1] <= y <= bounds[1][1]
 
-    if len(faces) == 0:
-        a, b = get_gt_shapes([image])[0].bounds()
-        x, y = a
-        w, h = b[0] - a[0], b[1] - a[1]
-        return np.array([x-0.05*w, y-0.05*h, 1.05*w, 1.05*h])
-    return boxes[maxi]
+def get_bounding_boxes(images, gt_shapes, face_detector):
+    ret = []
+    for i, (img, gt_shape) in enumerate(zip(images, gt_shapes)):
+        print_dynamic("Detecting face {}/{}".format(i, len(images)))
+        boxes = face_detector(img)
+        if len(boxes) == 0:
+            boxes.append(gt_shape.bounding_box())
+        # Some images contain multiple faces, but are annotated only once.
+        # We only remember the box that contains the gt_shape.
+        for box in boxes:
+            if is_point_within(gt_shape.centre(), box.bounds()):
+                ret.append(box)
+                break
 
-def read_images(img_glob):
+    return np.array(ret)
+
+MAX_FACE_WIDTH = 500.0
+def read_images(img_glob, normalise):
     # Read the training set into memory.
     images = []
-    for img_orig in mio.import_images(img_glob, verbose=True, normalise=False):
+    for img_orig in mio.import_images(img_glob, verbose=True, normalise=normalise):
         if not img_orig.has_landmarks:
             continue
         # Convert to greyscale and crop to landmarks.
-        images.append(img_orig.as_greyscale(mode='average').crop_to_landmarks_proportion_inplace(0.5))
+        img = img_orig.as_greyscale(mode='average').crop_to_landmarks_proportion_inplace(0.5)
+        img = img.resize((MAX_FACE_WIDTH, img.shape[1]*(MAX_FACE_WIDTH/img.shape[0])))
+        images.append(img)
     return np.array(images)
-
-def get_bounding_boxes(images, face_detector):
-    ret = []
-    for i, image in enumerate(images):
-        print_dynamic("Detecting face {}/{}".format(i, len(images)))
-        ret.append(get_bounding_box(image, face_detector))
-    return np.array(ret)
-
 
 class FeatureExtractor:
     def __init__(self, n_landmarks, n_pixels, kappa):

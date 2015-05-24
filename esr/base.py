@@ -61,11 +61,13 @@ class ESR:
         self.fern_cascades = fern_cascades
         self.mean_shape = mean_shape
 
-    def fit(self, image, box):
-        shape = fit_shape_to_box(self.mean_shape, box)
+    def fit(self, image, boxes):
 
-        for r in self.fern_cascades:
-            mean_to_shape = transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
-            offset = r.apply(image, shape, mean_to_shape)
-            shape.points += offset.points
-        return shape
+        shapes = [fit_shape_to_box(self.mean_shape, box) for box in boxes]
+
+        for shape in shapes:
+            for r in self.fern_cascades:
+                mean_to_shape = transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
+                offset = r.apply(image, shape, mean_to_shape)
+                shape.points += offset.points
+        return shapes
