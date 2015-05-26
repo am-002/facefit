@@ -68,14 +68,17 @@ def get_bounding_boxes(images, gt_shapes, face_detector):
     for i, (img, gt_shape) in enumerate(zip(images, gt_shapes)):
         print_dynamic("Detecting face {}/{}".format(i, len(images)))
         boxes = face_detector(img)
-        if len(boxes) == 0:
-            boxes.append(gt_shape.bounding_box())
         # Some images contain multiple faces, but are annotated only once.
         # We only remember the box that contains the gt_shape.
+        found = False
         for box in boxes:
             if is_point_within(gt_shape.centre(), box.bounds()):
                 ret.append(box)
+                found = True
                 break
+        if not found:
+            ret.append(gt_shape.bounding_box())
+
 
     return np.array(ret)
 
