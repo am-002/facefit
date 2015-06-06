@@ -45,11 +45,23 @@ def fit_shape_to_box(normal_shape, box):
 
     return PointCloud(shape)
 
+
+def center_shape(shape):
+    return PointCloud(2 * (shape.points - shape.centre()) / shape.range())
+
+
 def centered_mean_shape(target_shapes):
     mean_shape = menpo.shape.mean_pointcloud(target_shapes)
-    return PointCloud(2 * (mean_shape.points - mean_shape.centre()) / mean_shape.range())
+    return center_shape(mean_shape)
 
-def perturb_shapes(shapes):
+def perturb_shapes(shapes, gt_shapes, bboxes):
+    # indices = np.random.uniform(low=0, high=len(gt_shapes)-1, size=len(shapes))
+    # ret = []
+    # for i in xrange(len(shapes)):
+    #     centered_shape = center_shape(gt_shapes[indices[i]])
+    #     ret.append(fit_shape_to_box(centered_shape, bboxes[indices[i]]))
+    # return ret
+
     dx = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
     dy = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
     normalized_offsets = np.dstack((dy, dx))[0]

@@ -12,7 +12,7 @@ from util import FeatureExtractor
 
 
 class FernCascadeBuilder:
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, mean_shape, kappa, beta, basis_size, compression_maxnonzero):
+    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, kappa, beta, basis_size, compression_maxnonzero, compress):
         self.n_ferns = n_ferns
         self.n_fern_features = n_fern_features
         self.n_features = n_pixels
@@ -20,9 +20,11 @@ class FernCascadeBuilder:
         self.n_pixels = n_pixels
         self.n_landmarks = n_landmarks
         self.beta = beta
-        self.mean_shape = mean_shape
+        #self.mean_shape = mean_shape
+        self.mean_shape = None
         self.basis_size = basis_size
         self.compression_maxnonzero = compression_maxnonzero
+        self.compress = compress
 
     def to_mean(self, shape):
         return util.transform_to_mean_shape(shape, self.mean_shape)
@@ -40,7 +42,8 @@ class FernCascadeBuilder:
         return np.array(basis)
 
 
-    def build(self, images, shapes, gt_shapes):
+    def build(self, images, shapes, gt_shapes, mean_shape):
+        self.mean_shape = mean_shape
         assert(len(images) == len(shapes))
         assert(len(shapes) == len(gt_shapes))
 
@@ -69,12 +72,14 @@ class FernCascadeBuilder:
             targets -= [fern.apply(pixel_vector) for pixel_vector in pixel_vectors]
             ferns.append(fern)
 
-        print("\nPerforming fern compression.\n")
-        # Create a new basis by randomly sampling from all fern outputs.
-        basis = self._random_basis(ferns, self.basis_size)
-        for i, fern in enumerate(ferns):
-            print_dynamic("Compressing fern {}/{}.".format(i, len(ferns)))
-            fern.compress(basis, self.compression_maxnonzero)
+        basis = None
+        if self.compress:
+            print("\nPerforming fern compression.\n")
+            # Create a new basis by randomly sampling from all fern outputs.
+            basis = self._random_basis(ferns, self.basis_size)
+            for i, fern in enumerate(ferns):
+                print_dynamic("Compressing fern {}/{}.".format(i, len(ferns)))
+                fern.compress(basis, self.compression_maxnonzero)
 
         return FernCascade(self.n_landmarks, feature_extractor, ferns, basis)
 

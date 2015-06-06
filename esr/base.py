@@ -4,7 +4,7 @@ from fern_cascade import FernCascadeBuilder
 
 class ESRBuilder:
     def __init__(self, n_landmarks=68, n_stages=10, n_pixels=400, n_fern_features=5, n_ferns=500, n_perturbations=20,
-                 kappa=0.3, beta=1000, stddev_perturb=0.04, basis_size=512, compression_maxnonzero=5):
+                 kappa=0.3, beta=1000, stddev_perturb=0.04, basis_size=512, compression_maxnonzero=5, compress=True, weak_builder=None):
         self.n_landmarks = n_landmarks
         self.n_stages = n_stages
         self.n_pixels = n_pixels
@@ -17,6 +17,11 @@ class ESRBuilder:
         self.stddev_perturb = stddev_perturb
         self.basis_size = basis_size
         self.compression_maxnonzero = compression_maxnonzero
+        self.compress = compress
+        self.weak_builder = weak_builder
+        if not weak_builder:
+            self.weak_builder = FernCascadeBuilder(self.n_pixels, self.n_fern_features, self.n_ferns, self.n_landmarks,
+                             kappa, self.beta, self.basis_size, self.compression_maxnonzero, self.compress)
 
     def build(self, images, gt_shapes, boxes):
         # images = np.array(self.read_images(images))
@@ -32,7 +37,8 @@ class ESRBuilder:
         gt_shapes = gt_shapes.repeat(self.n_perturbations, axis=0)
         shapes = shapes.repeat(self.n_perturbations, axis=0)
 
-        shapes = util.perturb_shapes(shapes)
+        if self.n_perturbations > 1:
+            shapes = util.perturb_shapes(shapes, gt_shapes, boxes)
 
         assert(len(boxes) == len(images))
         assert(len(shapes) == len(images))
@@ -40,19 +46,21 @@ class ESRBuilder:
 
         print('\nSize of augmented dataset: {} images.\n'.format(len(images)))
 
-        fern_cascades = []
+        weak_regressors = []
         for j in xrange(self.n_stages):
-            fern_cascade_builder = FernCascadeBuilder(self.n_pixels, self.n_fern_features, self.n_ferns, self.n_landmarks,
-                                                      self.mean_shape, self.kappa, self.beta, self.basis_size, self.compression_maxnonzero)
-            fern_cascade = fern_cascade_builder.build(images, shapes, gt_shapes)
+            #KAPPA = self.kappa - j*0.023
+            #fern_cascade_builder = FernCascadeBuilder(self.n_pixels, self.n_fern_features, self.n_ferns, self.n_landmarks,
+            #                                          self.mean_shape, KAPPA, self.beta, self.basis_size, self.compression_maxnonzero, self.compress)
+            #fern_cascade = fern_cascade_builder.build(images, shapes, gt_shapes, self.mean_shape)
+            weak_regressor = self.weak_builder.build(images, shapes, gt_shapes, self.mean_shape)
             # Update current estimates of shapes.
             for i, (image, shape) in enumerate(zip(images, shapes)):
-                offset = fern_cascade.apply(image, shape, transform_to_mean_shape(shape, self.mean_shape).pseudoinverse())
+                offset = weak_regressor.apply(image, shape, transform_to_mean_shape(shape, self.mean_shape).pseudoinverse())
                 shapes[i].points += offset.points
-            fern_cascades.append(fern_cascade)
+            weak_regressors.append(weak_regressor)
             print("\nBuilt outer regressor {}\n".format(j))
 
-        return ESR(self.n_landmarks, fern_cascades, self.mean_shape)
+        return ESR(self.n_landmarks, weak_regressors, self.mean_shape)
 
 
 class ESR:

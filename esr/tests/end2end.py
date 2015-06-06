@@ -9,11 +9,12 @@ from esr import base
 import util
 import cv2
 import menpodetect
+from esr import forest
 
-builder = base.ESRBuilder()
+builder = base.ESRBuilder(n_stages=10, n_perturbations=20, weak_builder=forest.RegressionForestBuilder(n_trees=250))
 
-trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
-testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
+trainset = "/Users/andrejm/Google Drive/Work/BEng project/lfpw/testset"
+testset = "/Users/andrejm/Google Drive/Work/BEng project/lfpw/testset"
 
 face_detector = menpodetect.load_dlib_frontal_face_detector()
 
@@ -29,6 +30,9 @@ final_errors = []
 for k, (im, gt_shape) in enumerate(zip(test_images, gt_shapes)):
     final_shapes = model.fit(im, util.get_bounding_boxes([im], [gt_shape], face_detector))
     final_shape = final_shapes[0]
+    #print gt_shape.points
+    #print final_shape.points
+
     final_errors.append(compute_error(final_shape, gt_shape))
 
     print_dynamic('{}/{}'.format(k + 1, len(test_images)))
