@@ -38,7 +38,7 @@ class ESRBuilder:
         shapes = shapes.repeat(self.n_perturbations, axis=0)
 
         if self.n_perturbations > 1:
-            shapes = util.perturb_shapes(shapes, gt_shapes, boxes)
+            shapes = util.perturb_shapes(shapes, gt_shapes, boxes, self.n_perturbations)
 
         assert(len(boxes) == len(images))
         assert(len(shapes) == len(images))

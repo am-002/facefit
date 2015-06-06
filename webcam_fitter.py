@@ -19,7 +19,7 @@ face_detector = menpodetect.load_dlib_frontal_face_detector()
 
 last = False
 
-kernel = np.ones((5, 5), np.float32)/25
+kernel = np.ones((3, 3), np.float32)/9
 
 while True:
     ret, orig = cap.read()
@@ -47,6 +47,9 @@ while True:
 
     for shape in shapes:
         add_landmarks(orig, shape)
+        for box in bbox:
+            a, b = box.bounds()
+            cv2.rectangle(orig, (a[1],a[0]), (b[1],b[0]), (0, 255, 0), 2)
 
     cv2.imshow('frame', orig)
     if cv2.waitKey(1) & 0xFF == ord('q'):

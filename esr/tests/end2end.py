@@ -11,10 +11,10 @@ import cv2
 import menpodetect
 from esr import forest
 
-builder = base.ESRBuilder(n_stages=10, n_perturbations=20, weak_builder=forest.RegressionForestBuilder(n_trees=250))
+builder = base.ESRBuilder(n_stages=1, n_perturbations=1, weak_builder=None, beta=0, n_ferns=10, compress=False)
 
-trainset = "/Users/andrejm/Google Drive/Work/BEng project/lfpw/testset"
-testset = "/Users/andrejm/Google Drive/Work/BEng project/lfpw/testset"
+trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
+testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
 
 face_detector = menpodetect.load_dlib_frontal_face_detector()
 
