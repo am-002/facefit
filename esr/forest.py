@@ -1,67 +1,23 @@
 from menpo.shape import PointCloud
 from menpo.visualize import print_dynamic
+from esr.second_level_cascade import SecondLevelCascadeBuilder
 
 __author__ = 'andrejm'
 
 import numpy as np
 import util
 
-class RegressionForest:
-    def __init__(self, pixel_extractor, trees, n_landmarks, mean_shape):
-        self.pixel_extractor = pixel_extractor
-        self.trees = trees
-        self.n_landmarks = n_landmarks
-        self.mean_shape = mean_shape
-
-    def apply(self, image, shape):
-        mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
-        shape_indexed_features = self.pixel_extractor.extract_features(image, shape, mean_to_shape)
-        res = PointCloud(np.zeros((self.n_landmarks, 2)), copy=False)
-        for r in self.trees:
-            offset = r.apply(shape_indexed_features)
-            # print "Forest returned {}".format(offset)
-            res.points += offset.reshape((self.n_landmarks, 2))
-        return mean_to_shape.apply(res)
-
-class RegressionForestBuilder:
-    def __init__(self, n_trees, MU=0.1):
-        self.mean_shape = None
+class RegressionForestBuilder(SecondLevelCascadeBuilder):
+    def __init__(self, tree_builder, feature_extractor_builder, n_trees, MU=0.1):
+        super(self.__class__, self).__init__(n_trees, 68, tree_builder, feature_extractor_builder)
         self.n_trees = n_trees
         self.MU = MU
+        self.primitive_builder = tree_builder
+        self.feature_extractor_builder = feature_extractor_builder
 
-    def to_mean(self, shape):
-        return util.transform_to_mean_shape(shape, self.mean_shape)
-
-    def build(self, images, shapes, gt_shapes, mean_shape):
-        self.mean_shape = mean_shape
-        #TODO
-        self.n_landmarks = 68
-        #self.n_trees = 500
-        self.n_pixels = 400
-        pixel_extractor = util.FeatureExtractor(self.n_landmarks, self.n_pixels, 0.3)
-
-        # Calculate normalized targets.
-        deltas = [gt_shape.points - shape.points for gt_shape, shape in zip(gt_shapes, shapes)]
-        targets = np.array([self.to_mean(shape).apply(delta) for (shape, delta) in zip(shapes, deltas)])
-
-        # Extract shape-indexed pixels from images.
-        pixel_vectors = np.array([pixel_extractor.extract_features(img, shape, self.to_mean(shape).pseudoinverse())
-                                  for (img, shape) in zip(images, shapes)])
-
-        pixel_mean_coords = self.mean_shape.points[pixel_extractor.lmark] + pixel_extractor.pixel_coords
-
-        targets = targets.reshape((len(targets), self.n_landmarks*2))
-
-        tree_builder = RegressionTreeBuilder(self.mean_shape, self.MU)
-
-        trees = []
-        for i in xrange(self.n_trees):
-            print_dynamic("Building regression tree {}".format(i))
-            tree = tree_builder.build(pixel_vectors, targets, pixel_mean_coords)
-            # Update targets.
-            targets -= [tree.apply(pixel_vector) for pixel_vector in pixel_vectors]
-            trees.append(tree)
-        return RegressionForest(pixel_extractor, trees, self.n_landmarks, self.mean_shape)
+    def precompute(self, pixel_vectors, pixel_extractor, mean_shape):
+        pixel_coords = mean_shape.points[pixel_extractor.lmark] + pixel_extractor.pixel_coords
+        return pixel_coords, mean_shape
 
 class RegressionTree:
     def __init__(self, splits, leaves, depth=5):
@@ -69,7 +25,7 @@ class RegressionTree:
         self.leaves = leaves
         self.depth = depth
 
-    def apply(self, pixels):
+    def apply(self, pixels, extra):
         # print 'Applying on '
         # print pixels
         node = 0
@@ -82,15 +38,15 @@ class RegressionTree:
         return self.leaves[node - len(self.splits)]
 
 class RegressionTreeBuilder:
-    def __init__(self, mean_shape, MU=0.1, n_landmarks=68, depth=5, n_test_features=20):
+    def __init__(self, MU=0.1, n_landmarks=68, depth=5, n_test_features=20):
         self.depth = depth
         self.n_landmarks = n_landmarks
         self.n_test_splits = n_test_features
         self.n_split_nodes = (1 << (depth-1)) - 1
-        self.mean_shape = mean_shape
         self.MU = MU
 
-    def build(self, pixels, targets, pixel_mean_coords):
+    def build(self, pixels, targets, data):
+        pixel_mean_coords, mean_shape = data
         buckets = [None for _ in xrange((1 << self.depth) - 1)]
         sums = [0 for _ in xrange((1 << self.depth) - 1)]
         cnts = [0 for _ in xrange((1 << self.depth) - 1)]

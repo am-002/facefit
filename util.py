@@ -113,7 +113,7 @@ def read_images(img_glob, normalise):
         images.append(img)
     return np.array(images)
 
-class FeatureExtractor:
+class PixelExtractor:
     def __init__(self, n_landmarks, n_pixels, kappa):
         self.lmark = np.random.randint(low=0, high=n_landmarks, size=n_pixels)
         self.pixel_coords = np.random.uniform(low=-kappa, high=kappa, size=n_pixels*2).reshape(n_pixels, 2)
@@ -122,3 +122,16 @@ class FeatureExtractor:
         offsets = mean_to_shape.apply(self.pixel_coords)
         ret = shape.points[self.lmark] + offsets
         return sample_image(img, ret)
+
+class PixelExtractorBuilder:
+    def __init__(self, n_landmarks, n_pixels, kappa, adaptive=False):
+        self.adaptive = adaptive
+        self.n_landmarks = n_landmarks
+        self.n_pixels = n_pixels
+        self.kappa = kappa
+
+    def build(self, images, targets, i_stage):
+        kappa = self.kappa
+        if self.adaptive:
+            kappa -= i_stage*0.002
+        return PixelExtractor(self.n_landmarks, self.n_pixels, kappa)

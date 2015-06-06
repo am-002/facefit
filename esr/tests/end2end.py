@@ -9,11 +9,21 @@ from esr import base
 import util
 import cv2
 import menpodetect
+from esr import second_level_cascade
 from esr import fern_cascade
 from esr import forest
+from esr import fern
 
-builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1,
-                         weak_builder=fern_cascade.FernCascadeBuilder(n_ferns=10, beta=0, compress=False))
+feature_extractor_builder = util.PixelExtractorBuilder(n_landmarks=68, n_pixels=400, kappa=0.3)
+
+primitive_regressor_builder = fern.FernBuilder(n_pixels=400, n_features=5, n_landmarks=68, beta=0)
+primary_regressor_builder = fern_cascade.FernCascadeBuilder(primitive_regressor_builder, feature_extractor_builder,
+                                                           n_ferns = 10, compress=False)
+
+# primitive_regressor_builder = forest.RegressionTreeBuilder(MU=1)
+# primary_regressor_builder = forest.RegressionForestBuilder(primitive_regressor_builder, feature_extractor_builder, n_trees=10)
+
+builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1, weak_builder=primary_regressor_builder)
 
 # builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1,
 #                           weak_builder=forest.RegressionForestBuilder(n_trees=5, MU=1))
@@ -35,8 +45,6 @@ final_errors = []
 for k, (im, gt_shape) in enumerate(zip(test_images, gt_shapes)):
     final_shapes = model.fit(im, util.get_bounding_boxes([im], [gt_shape], face_detector))
     final_shape = final_shapes[0]
-    #print gt_shape.points
-    #print final_shape.points
 
     final_errors.append(compute_error(final_shape, gt_shape))
 

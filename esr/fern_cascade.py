@@ -5,14 +5,16 @@ Implementation of a cascade of ferns.
 from menpo.shape import PointCloud
 import numpy as np
 from menpo.visualize import print_dynamic
+from esr.second_level_cascade import SecondLevelCascade, SecondLevelCascadeBuilder
 
 from fern import FernBuilder
 import util
-from util import FeatureExtractor
+from util import PixelExtractor
 
-class FernCascadeBuilder:
-    def __init__(self,  n_landmarks=68, n_pixels=400, n_ferns=500, n_fern_features=5, kappa=0.3, beta=1000,
+class FernCascadeBuilder(SecondLevelCascadeBuilder):
+    def __init__(self, primitive_builder, feature_extractor_builder, n_landmarks=68, n_pixels=400, n_ferns=500, n_fern_features=5, kappa=0.3, beta=1000,
                  compress=True, basis_size=512, compression_maxnonzero=5):
+        super(self.__class__, self).__init__(n_ferns, n_landmarks, primitive_builder, feature_extractor_builder)
         self.n_ferns = n_ferns
         self.n_fern_features = n_fern_features
         self.n_features = n_pixels
@@ -24,9 +26,6 @@ class FernCascadeBuilder:
         self.basis_size = basis_size
         self.compression_maxnonzero = compression_maxnonzero
         self.compress = compress
-
-    def to_mean(self, shape):
-        return util.transform_to_mean_shape(shape, self.mean_shape)
 
     def _random_basis(self, ferns, basis_size):
         output_indices = np.random.choice(a=self.n_ferns*(1 << self.n_fern_features), size=basis_size, replace=False)
@@ -40,38 +39,15 @@ class FernCascadeBuilder:
             basis.append(ret)
         return np.array(basis)
 
-
-    def build(self, images, shapes, gt_shapes, mean_shape):
-        self.mean_shape = mean_shape
-        assert(len(images) == len(shapes))
-        assert(len(shapes) == len(gt_shapes))
-
-        feature_extractor = FeatureExtractor(self.n_landmarks, self.n_pixels, self.kappa)
-
-        # Calculate normalized targets.
-        deltas = [gt_shape.points - shape.points for gt_shape, shape in zip(gt_shapes, shapes)]
-        targets = np.array([self.to_mean(shape).apply(delta) for (shape, delta) in zip(shapes, deltas)])
-
-        # Extract shape-indexed pixels from images.
-        pixel_vectors = np.array([feature_extractor.extract_features(img, shape, self.to_mean(shape).pseudoinverse())
-                                  for (img, shape) in zip(images, shapes)])
-
+    def precompute(self, pixel_vectors, feature_extractor, mean_shape):
         # Precompute values common for all ferns.
         pixel_vals = np.transpose(pixel_vectors)
         pixel_averages = np.average(pixel_vals, axis=1)
         cov_pp = np.cov(pixel_vals, bias=1)
         pixel_var_sum = np.diag(cov_pp)[:, None] + np.diag(cov_pp)
+        return cov_pp, pixel_vals, pixel_averages, pixel_var_sum
 
-        fern_builder = FernBuilder(self.n_pixels, self.n_fern_features, self.n_landmarks, self.beta)
-
-        ferns = []
-        for i in xrange(self.n_ferns):
-            print_dynamic("Building fern {}".format(i))
-            fern = fern_builder.build(pixel_vectors, targets, cov_pp, pixel_vals, pixel_averages, pixel_var_sum)
-            # Update targets.
-            targets -= [fern.apply(pixel_vector) for pixel_vector in pixel_vectors]
-            ferns.append(fern)
-
+    def post_process(self, ferns):
         basis = None
         if self.compress:
             print("\nPerforming fern compression.\n")
@@ -80,9 +56,7 @@ class FernCascadeBuilder:
             for i, fern in enumerate(ferns):
                 print_dynamic("Compressing fern {}/{}.".format(i, len(ferns)))
                 fern.compress(basis, self.compression_maxnonzero)
-
-        return FernCascade(self.n_landmarks, feature_extractor, ferns, basis, mean_shape)
-
+        return basis
 
 class FernCascade:
     def __init__(self, n_landmarks, feature_extractor, ferns, basis, mean_shape):

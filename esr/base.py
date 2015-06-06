@@ -32,7 +32,7 @@ class CascadedShapeRegressorBuilder:
 
         weak_regressors = []
         for j in xrange(self.n_stages):
-            weak_regressor = self.weak_builder.build(images, shapes, gt_shapes, self.mean_shape)
+            weak_regressor = self.weak_builder.build(images, shapes, gt_shapes, self.mean_shape, j)
             # Update current estimates of shapes.
             for i, (image, shape) in enumerate(zip(images, shapes)):
                 offset = weak_regressor.apply(image, shape)

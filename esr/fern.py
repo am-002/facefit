@@ -20,7 +20,7 @@ class FernBuilder:
     # Returns the feature (pair of pixels) that has the highest correlation with the targets.
     def _highest_correlated_feature(self, dir, targets, cov_pp, pixel_values, pixel_averages, var_pp_sum):
         # Project each target onto random direction.
-        lengths = targets.reshape((len(targets), 2*self.n_landmarks)).dot(dir)
+        lengths = targets.dot(dir)
         cov_l_p = pixel_values.dot(lengths)/len(targets) - np.average(lengths) * pixel_averages
         correlation = (cov_l_p[:, None] - cov_l_p) / np.sqrt(np.std(lengths) * (var_pp_sum - 2 * cov_pp))
 
@@ -33,7 +33,7 @@ class FernBuilder:
         bins = np.zeros((2 ** n_features, 2 * n_landmarks))
         bins_size = np.zeros((2 ** n_features,))
         for i in xrange(len(bin_ids)):
-            bins[bin_ids[i]] += targets[i].reshape(2*n_landmarks,)
+            bins[bin_ids[i]] += targets[i]
             bins_size[bin_ids] += 1
         denoms = (bins_size + beta)
         # Replace all 0 denominators with 1 to avoid division by 0.
@@ -41,7 +41,8 @@ class FernBuilder:
         return bins / denoms[:, None]
 
     # Trains the fern on the given training data.
-    def build(self, pixel_samples, targets, cov_pp, pixel_values, pixel_averages, pixel_var_sum):
+    def build(self, pixel_samples, targets, data):
+        cov_pp, pixel_values, pixel_averages, pixel_var_sum = data
         feature_indices = np.zeros((self.n_features, 2), dtype=int, order='c')
 
         for f in xrange(self.n_features):
@@ -83,7 +84,7 @@ class Fern:
         # Get bin of the sample with the given shape-indexed pixels.
         bin_id = self.get_bin(features, self.thresholds)
         if not self.compressed:
-            return self.bins[bin_id].reshape((self.n_landmarks, 2))
+            return self.bins[bin_id]
         else:
             return np.sum(basis[self.compressed_bins[bin_id]]*self.compressed_coeffs[bin_id].reshape(self.Q, 1), axis=0)
 
