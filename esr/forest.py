@@ -7,12 +7,14 @@ import numpy as np
 import util
 
 class RegressionForest:
-    def __init__(self, pixel_extractor, trees, n_landmarks):
+    def __init__(self, pixel_extractor, trees, n_landmarks, mean_shape):
         self.pixel_extractor = pixel_extractor
         self.trees = trees
         self.n_landmarks = n_landmarks
+        self.mean_shape = mean_shape
 
-    def apply(self, image, shape, mean_to_shape):
+    def apply(self, image, shape):
+        mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
         shape_indexed_features = self.pixel_extractor.extract_features(image, shape, mean_to_shape)
         res = PointCloud(np.zeros((self.n_landmarks, 2)), copy=False)
         for r in self.trees:
@@ -22,9 +24,10 @@ class RegressionForest:
         return mean_to_shape.apply(res)
 
 class RegressionForestBuilder:
-    def __init__(self, n_trees):
+    def __init__(self, n_trees, MU=0.1):
         self.mean_shape = None
         self.n_trees = n_trees
+        self.MU = MU
 
     def to_mean(self, shape):
         return util.transform_to_mean_shape(shape, self.mean_shape)
@@ -41,9 +44,6 @@ class RegressionForestBuilder:
         deltas = [gt_shape.points - shape.points for gt_shape, shape in zip(gt_shapes, shapes)]
         targets = np.array([self.to_mean(shape).apply(delta) for (shape, delta) in zip(shapes, deltas)])
 
-        #print "Deltas:"
-        #print deltas
-
         # Extract shape-indexed pixels from images.
         pixel_vectors = np.array([pixel_extractor.extract_features(img, shape, self.to_mean(shape).pseudoinverse())
                                   for (img, shape) in zip(images, shapes)])
@@ -52,15 +52,16 @@ class RegressionForestBuilder:
 
         targets = targets.reshape((len(targets), self.n_landmarks*2))
 
+        tree_builder = RegressionTreeBuilder(self.mean_shape, self.MU)
+
         trees = []
         for i in xrange(self.n_trees):
             print_dynamic("Building regression tree {}".format(i))
-            tree_builder = RegressionTreeBuilder()
             tree = tree_builder.build(pixel_vectors, targets, pixel_mean_coords)
             # Update targets.
             targets -= [tree.apply(pixel_vector) for pixel_vector in pixel_vectors]
             trees.append(tree)
-        return RegressionForest(pixel_extractor, trees, self.n_landmarks)
+        return RegressionForest(pixel_extractor, trees, self.n_landmarks, self.mean_shape)
 
 class RegressionTree:
     def __init__(self, splits, leaves, depth=5):
@@ -81,11 +82,13 @@ class RegressionTree:
         return self.leaves[node - len(self.splits)]
 
 class RegressionTreeBuilder:
-    def __init__(self, n_landmarks=68, depth=5, n_test_features=20):
+    def __init__(self, mean_shape, MU=0.1, n_landmarks=68, depth=5, n_test_features=20):
         self.depth = depth
         self.n_landmarks = n_landmarks
         self.n_test_splits = n_test_features
         self.n_split_nodes = (1 << (depth-1)) - 1
+        self.mean_shape = mean_shape
+        self.MU = MU
 
     def build(self, pixels, targets, pixel_mean_coords):
         buckets = [None for _ in xrange((1 << self.depth) - 1)]
@@ -118,9 +121,9 @@ class RegressionTreeBuilder:
         for i in xrange(self.n_split_nodes, (1 << self.depth) - 1):
             if cnts[i] != 0:
                 #TODO
-                MU = 0.1
-                #MU = 1
-                leaves[i - self.n_split_nodes] = MU*sums[i] / cnts[i]
+                #MU = 0.1
+                #self.MU = 1
+                leaves[i - self.n_split_nodes] = self.MU*sums[i] / cnts[i]
                 s = ""
                 for k in xrange(int(buckets[i][0]), int(buckets[i][1])):
                     s += " " + str(perm[k])

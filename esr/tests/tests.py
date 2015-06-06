@@ -1,4 +1,4 @@
-from esr.base import ESRBuilder
+from esr.base import CascadedShapeRegressorBuilder
 from esr.fern import *
 from esr.fern import Fern
 from util import *

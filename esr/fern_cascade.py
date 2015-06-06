@@ -10,9 +10,9 @@ from fern import FernBuilder
 import util
 from util import FeatureExtractor
 
-
 class FernCascadeBuilder:
-    def __init__(self, n_pixels, n_fern_features, n_ferns, n_landmarks, kappa, beta, basis_size, compression_maxnonzero, compress):
+    def __init__(self,  n_landmarks=68, n_pixels=400, n_ferns=500, n_fern_features=5, kappa=0.3, beta=1000,
+                 compress=True, basis_size=512, compression_maxnonzero=5):
         self.n_ferns = n_ferns
         self.n_fern_features = n_fern_features
         self.n_features = n_pixels
@@ -20,7 +20,6 @@ class FernCascadeBuilder:
         self.n_pixels = n_pixels
         self.n_landmarks = n_landmarks
         self.beta = beta
-        #self.mean_shape = mean_shape
         self.mean_shape = None
         self.basis_size = basis_size
         self.compression_maxnonzero = compression_maxnonzero
@@ -63,10 +62,11 @@ class FernCascadeBuilder:
         cov_pp = np.cov(pixel_vals, bias=1)
         pixel_var_sum = np.diag(cov_pp)[:, None] + np.diag(cov_pp)
 
+        fern_builder = FernBuilder(self.n_pixels, self.n_fern_features, self.n_landmarks, self.beta)
+
         ferns = []
         for i in xrange(self.n_ferns):
             print_dynamic("Building fern {}".format(i))
-            fern_builder = FernBuilder(self.n_pixels, self.n_fern_features, self.n_landmarks, self.beta)
             fern = fern_builder.build(pixel_vectors, targets, cov_pp, pixel_vals, pixel_averages, pixel_var_sum)
             # Update targets.
             targets -= [fern.apply(pixel_vector) for pixel_vector in pixel_vectors]
@@ -81,17 +81,19 @@ class FernCascadeBuilder:
                 print_dynamic("Compressing fern {}/{}.".format(i, len(ferns)))
                 fern.compress(basis, self.compression_maxnonzero)
 
-        return FernCascade(self.n_landmarks, feature_extractor, ferns, basis)
+        return FernCascade(self.n_landmarks, feature_extractor, ferns, basis, mean_shape)
 
 
 class FernCascade:
-    def __init__(self, n_landmarks, feature_extractor, ferns, basis):
+    def __init__(self, n_landmarks, feature_extractor, ferns, basis, mean_shape):
         self.n_landmarks = n_landmarks
         self.feature_extractor = feature_extractor
         self.ferns = ferns
         self.basis = basis
+        self.mean_shape = mean_shape
 
-    def apply(self, image, shape, mean_to_shape):
+    def apply(self, image, shape):
+        mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
         shape_indexed_features = self.feature_extractor.extract_features(image, shape, mean_to_shape)
         res = PointCloud(np.zeros((self.n_landmarks, 2)), copy=False)
         for r in self.ferns:

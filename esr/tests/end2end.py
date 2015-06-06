@@ -9,9 +9,14 @@ from esr import base
 import util
 import cv2
 import menpodetect
+from esr import fern_cascade
 from esr import forest
 
-builder = base.ESRBuilder(n_stages=1, n_perturbations=1, weak_builder=None, beta=0, n_ferns=10, compress=False)
+builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1,
+                         weak_builder=fern_cascade.FernCascadeBuilder(n_ferns=10, beta=0, compress=False))
+
+# builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1,
+#                           weak_builder=forest.RegressionForestBuilder(n_trees=5, MU=1))
 
 trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
 testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
