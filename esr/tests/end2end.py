@@ -16,20 +16,20 @@ from esr import fern
 
 feature_extractor_builder = util.PixelExtractorBuilder(n_landmarks=68, n_pixels=400, kappa=0.3)
 
-primitive_regressor_builder = fern.FernBuilder(n_pixels=400, n_features=5, n_landmarks=68, beta=0)
-primary_regressor_builder = fern_cascade.FernCascadeBuilder(primitive_regressor_builder, feature_extractor_builder,
-                                                           n_ferns = 10, compress=False)
+# primitive_regressor_builder = fern.FernBuilder(n_pixels=400, n_features=5, n_landmarks=68, beta=1000)
+# primary_regressor_builder = fern_cascade.FernCascadeBuilder(primitive_regressor_builder, feature_extractor_builder,
+#                                                            n_ferns=500, compress=False)
 
-# primitive_regressor_builder = forest.RegressionTreeBuilder(MU=1)
-# primary_regressor_builder = forest.RegressionForestBuilder(primitive_regressor_builder, feature_extractor_builder, n_trees=10)
+primitive_regressor_builder = forest.RegressionTreeBuilder(MU=1)
+primary_regressor_builder = forest.RegressionForestBuilder(primitive_regressor_builder, feature_extractor_builder, n_trees=500)
 
-builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1, weak_builder=primary_regressor_builder)
+builder = base.CascadedShapeRegressorBuilder(n_stages=10, n_perturbations=20, weak_builder=primary_regressor_builder)
 
 # builder = base.CascadedShapeRegressorBuilder(n_stages=1, n_perturbations=1,
 #                           weak_builder=forest.RegressionForestBuilder(n_trees=5, MU=1))
 
-trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
-testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/two"
+trainset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
+testset = "/Users/andrejm/Google Drive/Work/BEng project/helen/subset"
 
 face_detector = menpodetect.load_dlib_frontal_face_detector()
 

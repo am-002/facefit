@@ -65,7 +65,9 @@ def perturb_shapes(shapes, gt_shapes, bboxes, n_perturbations):
 
     dx = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
     dy = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
-    scale = np.random.normal(1, 0.12, size=(len(shapes)))
+    # TODO: Rescale the mean shape as part of perturbations.
+    # scale = np.random.normal(1, 0.12, size=(len(shapes)))
+    scale = np.ones(len(shapes))
     normalized_offsets = np.dstack((dy, dx))[0]
 
     ret = []

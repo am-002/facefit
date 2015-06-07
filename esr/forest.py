@@ -7,6 +7,8 @@ __author__ = 'andrejm'
 import numpy as np
 import util
 
+
+
 class RegressionForestBuilder(SecondLevelCascadeBuilder):
     def __init__(self, tree_builder, feature_extractor_builder, n_trees, MU=0.1):
         super(self.__class__, self).__init__(n_trees, 68, tree_builder, feature_extractor_builder)
