@@ -1,1 +1,6 @@
 *.pyc
+*.o
+.idea
+*.so.2
+*.a
+experiments/.*
