@@ -1,5 +1,6 @@
 import site
-
+import os
+from os import path
 from menpo.shape import PointCloud
 from menpo.visualize import print_dynamic
 import numpy as np
@@ -7,7 +8,8 @@ import numpy as np
 from facefit import util
 from facefit.base import RegressorBuilder
 
-site.addsitedir('../external/liblinear/python')
+dirname = path.dirname(path.abspath(__file__))
+site.addsitedir(path.join(dirname, '../external/liblinear/python'))
 import liblinearutil
 
 
