@@ -5,11 +5,11 @@ import menpo.io as mio
 from menpo.visualize import print_dynamic
 from menpofit.fittingresult import compute_error
 import numpy as np
+sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 from facefit import util
 from facefit import esr, ert, lbf
 import menpodetect
 
-sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 
 
 def fit_all(model_builder, train_images, test_images):
