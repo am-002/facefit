@@ -7,7 +7,7 @@ import numpy as np
 from facefit import util
 from facefit.base import RegressorBuilder
 
-site.addsitedir('/Users/andrejm/Downloads/liblinear-1.96/python/')
+site.addsitedir('../external/liblinear/python')
 import liblinearutil
 
 

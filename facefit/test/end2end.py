@@ -11,7 +11,6 @@ from facefit import esr, ert, lbf
 import menpodetect
 
 
-
 def fit_all(model_builder, train_images, test_images):
     face_detector = menpodetect.load_dlib_frontal_face_detector()
 
