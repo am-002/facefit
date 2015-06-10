@@ -10,20 +10,14 @@ from facefit import util
 from facefit import esr, ert, lbf
 import menpodetect
 
-
-def fit_all(model_builder, train_images, test_images, num_init):
+def test_model(model, test_images, num_init):
     face_detector = menpodetect.load_dlib_frontal_face_detector()
-
-    train_gt_shapes = util.get_gt_shapes(train_images)
     test_gt_shapes = util.get_gt_shapes(test_images)
-
-    train_boxes = util.get_bounding_boxes(train_images, train_gt_shapes, face_detector)
     test_boxes = util.get_bounding_boxes(test_images, test_gt_shapes, face_detector)
-
-    model = model_builder.build(train_images, train_gt_shapes, train_boxes)
 
     initial_errors = []
     final_errors = []
+
     initial_shapes = []
     final_shapes = []
 
@@ -33,7 +27,7 @@ def fit_all(model_builder, train_images, test_images, num_init):
         init_shape = util.get_median_shape(init_shapes)
         final_shape = fin_shapes[0]
 
-        initial_shapes = init_shape
+        initial_shapes.append(init_shape)
         final_shapes.append(final_shape)
 
         initial_errors.append(compute_error(init_shape, gt_shape))
@@ -41,8 +35,19 @@ def fit_all(model_builder, train_images, test_images, num_init):
 
         print_dynamic('{}/{}'.format(k + 1, len(test_images)))
 
-    return initial_errors, final_errors, initial_shapes, final_shapes, model
+    return initial_errors, final_errors, initial_shapes, final_shapes
 
+def fit_all(model_builder, train_images, test_images, num_init):
+    face_detector = menpodetect.load_dlib_frontal_face_detector()
+
+    train_gt_shapes = util.get_gt_shapes(train_images)
+    train_boxes = util.get_bounding_boxes(train_images, train_gt_shapes, face_detector)
+
+    model = model_builder.build(train_images, train_gt_shapes, train_boxes)
+
+    initial_errors, final_errors, initial_shapes, final_shapes = test_model(model, test_images, num_init)
+
+    return initial_errors, final_errors, initial_shapes, final_shapes, model
 
 
 # Use a handful of images built into menpo for both training and testing.
