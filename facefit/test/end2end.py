@@ -11,7 +11,7 @@ from facefit import esr, ert, lbf
 import menpodetect
 
 
-def fit_all(model_builder, train_images, test_images):
+def fit_all(model_builder, train_images, test_images, num_init):
     face_detector = menpodetect.load_dlib_frontal_face_detector()
 
     train_gt_shapes = util.get_gt_shapes(train_images)
@@ -24,14 +24,16 @@ def fit_all(model_builder, train_images, test_images):
 
     initial_errors = []
     final_errors = []
+    initial_shapes = []
     final_shapes = []
 
     for k, (im, gt_shape, box) in enumerate(zip(test_images, test_gt_shapes, test_boxes)):
-        init_shapes, fin_shapes = model.apply(im, [box])
+        init_shapes, fin_shapes = model.apply(im, ([box], num_init, None))
 
-        init_shape = init_shapes[0]
+        init_shape = util.get_median_shape(init_shapes)
         final_shape = fin_shapes[0]
 
+        initial_shapes = init_shape
         final_shapes.append(final_shape)
 
         initial_errors.append(compute_error(init_shape, gt_shape))
@@ -39,7 +41,7 @@ def fit_all(model_builder, train_images, test_images):
 
         print_dynamic('{}/{}'.format(k + 1, len(test_images)))
 
-    return initial_errors, final_errors, final_shapes, model
+    return initial_errors, final_errors, initial_shapes, final_shapes, model
 
 
 
@@ -50,7 +52,7 @@ test_images = np.array([mio.import_builtin_asset(image).as_greyscale(mode='avera
 train_images = test_images
 
 def test_all(test, model_builder, test_images, train_images):
-    initerr, finerr, _, _ = fit_all(model_builder, test_images, train_images)
+    initerr, finerr, _, _, _ = fit_all(model_builder, test_images, train_images, num_init=1)
 
     init_mean_error = np.mean(initerr)
     fin_mean_error = np.mean(finerr)

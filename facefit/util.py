@@ -118,4 +118,22 @@ def read_images(img_glob, normalise):
         images.append(img)
     return np.array(images)
 
+def get_median_shape(shapes):
+    if len(shapes) == 1:
+        return shapes[0]
+    n_landmarks = len(shapes[0].points)
+    ret = np.zeros(n_landmarks*2)
+
+    if len(shapes) > 1:
+        pts = np.array([s.as_vector() for s in shapes]).transpose()
+        for k in xrange(n_landmarks*2):
+            ret[k] = np.median(pts[k])
+    return PointCloud(ret.reshape(n_landmarks, 2), copy=False)
+
+def perturb_init_shape(int_shape, num):
+    return [int_shape.copy()]
+    #TODO!!!
+    #ret = [int_shape.copy() for _ in xrange(num)]
+
+    #return perturb_shapes(ret, None, None, num)
 

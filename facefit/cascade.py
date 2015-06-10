@@ -57,13 +57,20 @@ class CascadedShapeRegressor:
         self.weak_regressors = weak_regressors
         self.mean_shape = mean_shape
 
-    def apply(self, image, boxes):
-        initial_shapes = np.array([fit_shape_to_box(self.mean_shape, box) for box in boxes])
+    def apply(self, image, extra):
+        boxes, init_num, initial_shapes = extra
+
+        if initial_shapes is None:
+            initial_shapes = np.array([fit_shape_to_box(self.mean_shape, box) for box in boxes])
 
         shapes = deepcopy(initial_shapes)
 
-        for shape in shapes:
-            for r in self.weak_regressors:
-                offset = r.apply(image, shape)
-                shape.points += offset.points
+        for i, shape in enumerate(shapes):
+            init_shapes = util.perturb_init_shape(initial_shapes[i], init_num)
+            for j in xrange(init_num):
+                for r in self.weak_regressors:
+                    offset = r.apply(image, init_shapes[j])
+                    init_shapes[j].points += offset.points
+            shape.points[:] = util.get_median_shape(init_shapes).points
+
         return initial_shapes, shapes

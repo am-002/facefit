@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+#TODO: Use **kwargs instead of "extra"!
 
 class FeatureExtractor(object):
     @abstractmethod
