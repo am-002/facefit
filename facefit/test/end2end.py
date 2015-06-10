@@ -39,7 +39,7 @@ def fit_all(model_builder, train_images, test_images):
 
         print_dynamic('{}/{}'.format(k + 1, len(test_images)))
 
-    return initial_errors, final_errors, final_shapes
+    return initial_errors, final_errors, final_shapes, model
 
 
 
@@ -50,7 +50,7 @@ test_images = np.array([mio.import_builtin_asset(image).as_greyscale(mode='avera
 train_images = test_images
 
 def test_all(test, model_builder, test_images, train_images):
-    initerr, finerr, _ = fit_all(model_builder, test_images, train_images)
+    initerr, finerr, _, _ = fit_all(model_builder, test_images, train_images)
 
     init_mean_error = np.mean(initerr)
     fin_mean_error = np.mean(finerr)
