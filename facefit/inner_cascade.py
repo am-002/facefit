@@ -30,7 +30,7 @@ class InnerCascadeBuilder(RegressorBuilder):
         self.mean_shape = mean_shape
         assert(len(images) == len(shapes))
 
-        feature_extractor = self.feature_extractor_builder.build(images, shapes, (targets, mean_shape, i_stage))
+        feature_extractor = self.feature_extractor_builder.build(images, shapes, targets, (mean_shape, i_stage))
 
         # Extract shape-indexed pixels from images.
         pixel_vectors = np.array([feature_extractor.extract_features(img, shape, self.to_mean(shape).pseudoinverse())

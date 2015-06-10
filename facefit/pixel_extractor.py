@@ -25,8 +25,8 @@ class PixelExtractorBuilder(FeatureExtractorBuilder):
         self.kappa = kappa
         self.around_landmark = around_landmark
 
-    def build(self, images, targets, extra):
-        shapes, mean_shape, i_stage = extra
+    def build(self, images, shapes, targets, extra):
+        mean_shape, i_stage = extra
         kappa = self.kappa
         if self.adaptive:
             kappa -= i_stage*0.002

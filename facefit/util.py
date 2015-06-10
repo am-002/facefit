@@ -32,6 +32,13 @@ def rand_unit_vector(dim):
 def get_gt_shapes(images):
     return np.array([image.landmarks['PTS'].lms for image in images])
 
+def center_shape(shape):
+    return PointCloud(2 * (shape.points - shape.centre()) / shape.range())
+
+def centered_mean_shape(target_shapes):
+    mean_shape = menpo.shape.mean_pointcloud(target_shapes)
+    return center_shape(mean_shape)
+
 def fit_shape_to_box(normal_shape, box):
     x, y = box.points[0]
     w, h = box.range()
@@ -49,37 +56,48 @@ def fit_shape_to_box(normal_shape, box):
 
     return PointCloud(shape)
 
+def perturb_shapes(images, shapes, gt_shapes, boxes, n_perturbations, mode):
+    boxes = boxes.repeat(n_perturbations, axis=0)
+    images = images.repeat(n_perturbations, axis=0)
+    shapes = shapes.repeat(n_perturbations, axis=0)
 
-def center_shape(shape):
-    return PointCloud(2 * (shape.points - shape.centre()) / shape.range())
+#     if mode == 'other_shapes':
+#         rnd = np.random.randint(low=0, high=len(gt_shapes), size=len(shapes))
+#         for i in xrange(len(shapes)):
+#             if i % n_perturbations != 0:
+#                 centered = center_shape(gt_shapes[rnd[i]])
+#                 shapes[i] = fit_shape_to_box(centered, boxes[i])
+#     else:
+#         # Mean shape will be used.
+#         pass
 
-
-def centered_mean_shape(target_shapes):
-    mean_shape = menpo.shape.mean_pointcloud(target_shapes)
-    return center_shape(mean_shape)
-
-def perturb_shapes(shapes, gt_shapes, bboxes, n_perturbations):
-    # indices = np.random.uniform(low=0, high=len(gt_shapes)-1, size=len(shapes))
-    # ret = []
-    # for i in xrange(len(shapes)):
-    #     centered_shape = center_shape(gt_shapes[indices[i]])
-    #     ret.append(fit_shape_to_box(centered_shape, bboxes[indices[i]]))
-    # return ret
+    gt_shapes = gt_shapes.repeat(n_perturbations, axis=0)
 
     dx = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
     dy = np.random.uniform(low=-0.15, high=0.15, size=(len(shapes)))
-    # TODO: Rescale the mean shape as part of perturbations.
-    # scale = np.random.normal(1, 0.12, size=(len(shapes)))
-    scale = np.ones(len(shapes))
+    scale = np.random.normal(1, 0.07, size=(len(shapes)))
     normalized_offsets = np.dstack((dy, dx))[0]
 
     ret = []
-
     for i in xrange(len(shapes)):
-        if i % n_perturbations == 0:
-            ret.append(shapes[i])
-        else:
-            ret.append(PointCloud((shapes[i].points - shapes[i].centre())*scale[i] + gt_shapes[i].centre() + shapes[i].range() * normalized_offsets[i]))
+        midpt = (gt_shapes[i].centre() + shapes[i].centre()) / 2
+        ret.append(PointCloud((shapes[i].points-shapes[i].centre())*scale[i]
+                              + midpt + shapes[i].range() * normalized_offsets[i]))
+
+    return images, ret, gt_shapes, boxes
+
+def perturb_init_shape(init_shape, num):
+    ret = [init_shape]
+    if num <= 1:
+        return ret
+    dx = np.random.uniform(low=-0.10, high=0.10, size=(num-1))
+    dy = np.random.uniform(low=-0.10, high=0.10, size=(num-1))
+    scale = np.random.normal(1, 0.07, size=(num-1))
+    normalized_offsets = np.dstack((dy, dx))[0]
+
+    for i in xrange(num-1):
+        ret.append(PointCloud((init_shape.points-init_shape.centre())*scale[i] +
+                              init_shape.centre() + init_shape.range() * normalized_offsets[i]))
     return ret
 
 def is_point_within(pt, bounds):
@@ -130,10 +148,5 @@ def get_median_shape(shapes):
             ret[k] = np.median(pts[k])
     return PointCloud(ret.reshape(n_landmarks, 2), copy=False)
 
-def perturb_init_shape(int_shape, num):
-    return [int_shape.copy()]
-    #TODO!!!
-    #ret = [int_shape.copy() for _ in xrange(num)]
 
-    #return perturb_shapes(ret, None, None, num)
 

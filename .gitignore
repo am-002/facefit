@@ -4,3 +4,5 @@
 *.so.2
 *.a
 experiments/.*
+experiments/local*
+models/*

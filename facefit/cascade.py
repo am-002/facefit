@@ -18,20 +18,15 @@ class CascadedShapeRegressorBuilder(RegressorBuilder):
         shapes = np.array([util.fit_shape_to_box(self.mean_shape, box) for box in boxes])
 
         print_dynamic('Perturbing initial estimates')
-        boxes = boxes.repeat(self.n_perturbations, axis=0)
-        images = images.repeat(self.n_perturbations, axis=0)
-        gt_shapes = gt_shapes.repeat(self.n_perturbations, axis=0)
-        shapes = shapes.repeat(self.n_perturbations, axis=0)
-
         if self.n_perturbations > 1:
-            shapes = util.perturb_shapes(shapes, gt_shapes, boxes, self.n_perturbations)
+            images, shapes, gt_shapes, boxes = util.perturb_shapes(images, shapes, gt_shapes, boxes,
+                                                                   self.n_perturbations, mode='mean_shape')
 
         assert(len(boxes) == len(images))
         assert(len(shapes) == len(images))
         assert(len(gt_shapes) == len(images))
 
         print('\nSize of augmented dataset: {} images.\n'.format(len(images)))
-
 
         weak_regressors = []
         for j in xrange(self.n_stages):
@@ -51,7 +46,7 @@ class CascadedShapeRegressorBuilder(RegressorBuilder):
         return CascadedShapeRegressor(self.n_landmarks, weak_regressors, self.mean_shape)
 
 
-class CascadedShapeRegressor:
+class CascadedShapeRegressor(Regressor):
     def __init__(self, n_landmarks, weak_regressors, mean_shape):
         self.n_landmarks = n_landmarks
         self.weak_regressors = weak_regressors
@@ -66,7 +61,7 @@ class CascadedShapeRegressor:
         shapes = deepcopy(initial_shapes)
 
         for i, shape in enumerate(shapes):
-            init_shapes = util.perturb_init_shape(initial_shapes[i], init_num)
+            init_shapes = util.perturb_init_shape(initial_shapes[i].copy(), init_num)
             for j in xrange(init_num):
                 for r in self.weak_regressors:
                     offset = r.apply(image, init_shapes[j])
