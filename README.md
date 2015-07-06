@@ -6,7 +6,7 @@ This repository contains the implementation of my final individual project at Im
 
 All three methods (ESR, ERT and LBF) are implemented in in the *facefit* Python package.
 
-# Installation
+## Installation
 Install conda.
 ```bash
 curl -s https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh | bash
@@ -26,10 +26,22 @@ cd beng/facefit/external/liblinear/python
 make
 ```
 
-# Example usage
-It is possible to train and test models using the IPython notebooks included in the experiments/ directory. Note that for all three methods, training currently takes at least a couple of hours. Serialized (hickled) models can be found here:
+## Example usage
+### Training and testing a model
+It is possible to train and test models using the IPython notebooks included in the experiments/ directory. Note that for all three methods, training currently takes at least a couple of hours. 
+
+Serialized (hickled) models can be found here:
 https://www.dropbox.com/s/rsrq37bl4h254f4/models_lfpw_helen.zip?dl=0
 All three models are trained on a dataset consiting of training images from a combination of the LFPW and Helen datasets. For more information on usage, consult the notebooks in experiments/.
+
+### (Almost) Real-time webcam face fitting
+```python
+python clients/webcam_fitter.py path_to_hickled_model
+```
+e.g.
+```python
+python clients/webcam_fitter.py models/ert_lfpw_helen.hkl
+```
 
 
 
