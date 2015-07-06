@@ -17,13 +17,34 @@ class LocalBinaryFeaturesExtractor(FeatureExtractor):
         n_trees = len(self.forests[0].regressors)
         n_leaves = len(self.forests[0].regressors[0].leaves)
         local_binary_features = np.zeros(n_landmarks*n_trees*n_leaves)
+        mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
+
         for landmark_i, f in enumerate(self.forests):
-            pixels = f.feature_extractor.extract_features(img, shape,
-                                                          util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse())
+            pixels = f.feature_extractor.extract_features(img, shape, mean_to_shape)
             for tree_i, tree in enumerate(f.regressors):
                 leaf = tree.get_leaf_index(pixels)
                 local_binary_features[landmark_i*n_trees*n_leaves + tree_i*n_leaves + leaf] = 1
         return local_binary_features
+
+    def get_indices(self, img, shape, mean_to_shape):
+        k = 0
+        n_trees = len(self.forests[0].regressors)
+        n_leaves = len(self.forests[0].regressors[0].leaves)
+        base_ptr = 0
+        bf_per_landmark = n_trees*n_leaves
+
+        n_landmarks = self.mean_shape.n_points
+        ret = np.zeros(n_landmarks*n_trees, dtype=int)
+
+        for f in self.forests:
+            pixels = f.feature_extractor.extract_features(img, shape, mean_to_shape)
+            for tree_i, tree in enumerate(f.regressors):
+                ret[k] = base_ptr + tree_i*n_leaves + tree.get_leaf_index(pixels)
+                k += 1
+            base_ptr += bf_per_landmark
+        return ret
+
+
 
 
 class LocalBinaryFeaturesExtractorBuilder(FeatureExtractorBuilder):

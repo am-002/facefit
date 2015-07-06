@@ -45,6 +45,9 @@ class GlobalRegression:
 
     def apply(self, image, shape):
         mean_to_shape = util.transform_to_mean_shape(shape, self.mean_shape).pseudoinverse()
-        feat = self.feature_extractor.apply(image, shape)
-        res = self.regression_matrix[feat == 1].sum(axis=0).reshape((self.n_landmarks, 2))
-        return mean_to_shape.apply(PointCloud(res, copy=False))
+        #feat = self.feature_extractor.apply(image, shape)
+        #res = self.regression_matrix[feat == 1].sum(axis=0).reshape((self.n_landmarks, 2))
+        #return mean_to_shape.apply(PointCloud(res, copy=False))
+        indices = self.feature_extractor.get_indices(image, shape, mean_to_shape)
+        return mean_to_shape.apply(PointCloud(self.regression_matrix[indices].sum(axis=0).reshape((self.n_landmarks, 2)),
+                                              copy=False))
