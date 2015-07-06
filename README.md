@@ -1,30 +1,36 @@
-# Implementation of regression-based face alignment techniques
-This repository contains the implementation of my final individual project at Imperial College London.
+# Implementation of Cascaded-Regression based Methods for Facial Feature Points Detection
+This repository contains the implementation of my final individual project at Imperial College London. Its objective was to study and implement the following methods for facial feature point detection ("face alignment"):
+* Face Alignment by Explicit Shape Regression by Cao et al from CVPR 2012 (ESR)
+* One millisecond face alignment with an ensemble of regression trees by Kazemi et al from CVPR 2014 (ERT)
+* Face Alignment at 3000 FPS via Regressing Local Binary Features by Ren et al from CVPR 2014 (LBF)
 
-It includes the implementation of the following face alignment methods:
-* Explicit Shape Regression (ESR) by Cao et al.
-* One millisecond Face Alignment by an Ensemble of Regression Trees (ERT)
-* Face Alignment at 3000fps via regressing Local Binary Features (LBF)
+All three methods (ESR, ERT and LBF) are implemented in in the *facefit* Python package.
 
 # Installation
 Install conda.
 ```bash
 curl -s https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh | bash
-```
-Create and activate a new conda environment
-```bash
-conda create -n face-alignment python
+
+# Create and activate a new conda environment
+conda create -n face-alignment python -y
 source activate face-alignment
+
+# Install dependencies.
+conda install -y -c menpo menpo menpofit menpodetect 
+conda install -y matplotlib numpy opencv python=2.7.9=1 pyzmq scikit-learn scipy zlib
+apt-get install libhdf5-dev -y
+pip install hickle
+
+# Build liblinear.
+cd beng/facefit/external/liblinear/python
+make
 ```
 
-Install dependencies.
-```bash
-conda install -c menpo menpo, menpofit, menpodetect
-conda install matplotlib numpy opencv python=2.7.9=1 pyzmq scikit-learn scipy zlib
-pip install hickle
-```
-Installing IPython notebook.
-```bash
-conda update ipython ipython-notebook
-```
+# Example usage
+It is possible to train and test models using the IPython notebooks included in the experiments/ directory. Note that for all three methods, training currently takes at least a couple of hours. Serialized (hickled) models can be found here:
+https://www.dropbox.com/s/rsrq37bl4h254f4/models_lfpw_helen.zip?dl=0
+All three models are trained on a dataset consiting of training images from a combination of the LFPW and Helen datasets. For more information on usage, consult the notebooks in experiments/.
+
+
+
 
