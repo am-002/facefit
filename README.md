@@ -1,4 +1,7 @@
 # Implementation of Cascaded-Regression based Methods for Facial Feature Points Detection
+
+** I no longer have time to maintain this, feel free to file pull requests with any improvements/fixes. I'll try to review them ASAP. **
+
 This repository contains the implementation of my final individual project at Imperial College London. Its objective was to study and implement the following methods for facial feature point detection ("face alignment"):
 * Face Alignment by Explicit Shape Regression by Cao et al from CVPR 2012 (ESR)
 * One millisecond face alignment with an ensemble of regression trees by Kazemi et al from CVPR 2014 (ERT)
